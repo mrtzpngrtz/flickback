@@ -1,0 +1,33 @@
+{
+  "name": "flickback",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node scripts/cleanup-route-groups.js",
+    "dev": "next dev",
+    "prebuild": "node scripts/cleanup-route-groups.js",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@prisma/client": "^5.15.0",
+    "next": "14.2.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
+    "prisma": "^5.15.0",
+    "typescript": "^5"
+  }
+}

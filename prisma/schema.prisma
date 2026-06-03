@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Video {
+  id          String      @id @default(cuid())
+  title       String
+  filename    String
+  storageKey  String      @unique
+  mimeType    String
+  size        BigInt
+  duration    Float?
+  width       Int?
+  height      Int?
+  status      VideoStatus @default(PROCESSING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  annotations Annotation[]
+  shareTokens ShareToken[]
+}
+
+model Annotation {
+  id        String   @id @default(cuid())
+  videoId   String
+  timestamp Float
+  drawing   String?
+  comment   String
+  author    String
+  role      Role     @default(ADMIN)
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+}
+
+model ShareToken {
+  id        String    @id @default(cuid())
+  token     String    @unique @default(cuid())
+  videoId   String
+  label     String?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+}
+
+enum VideoStatus {
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}

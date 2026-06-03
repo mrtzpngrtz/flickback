@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+
+interface Params { params: { token: string } }
+
+export async function POST(req: NextRequest, { params }: Params) {
+  const share = await prisma.shareToken.findUnique({ where: { token: params.token } })
+  if (!share) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
+  if (share.expiresAt && share.expiresAt < new Date()) {
+    return NextResponse.json({ error: 'Link expired' }, { status: 403 })
+  }
+
+  const body = await req.json()
+  const { timestamp, drawing, comment, author } = body
+
+  if (timestamp == null || !comment || !author) {
+    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  }
+
+  const annotation = await prisma.annotation.create({
+    data: {
+      videoId: share.videoId,
+      timestamp: parseFloat(timestamp),
+      drawing: drawing ?? null,
+      comment,
+      author,
+      role: 'CLIENT',
+    },
+  })
+
+  return NextResponse.json({
+    ...annotation,
+    createdAt: annotation.createdAt.toISOString(),
+  }, { status: 201 })
+}

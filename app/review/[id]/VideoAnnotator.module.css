@@ -1,0 +1,360 @@
+/* VideoAnnotator — Swiss layout */
+
+.root {
+  display:     grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 1fr;
+  height:      calc(100vh - 40px);
+  overflow:    hidden;
+  background:  var(--white);
+}
+
+/* ── Left column: video + controls ─────────── */
+.videoCol {
+  display:        flex;
+  flex-direction: column;
+  overflow:       hidden;
+  background:     #000;
+}
+
+.videoWrapper {
+  position:   relative;
+  flex:        1;
+  overflow:    hidden;
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.video {
+  width:      100%;
+  height:     100%;
+  object-fit: contain;
+  display:    block;
+}
+
+.canvas {
+  position:  absolute;
+  top:       50%;
+  left:      50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Controls bar ───────────────────────────── */
+.controls {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-16);
+  padding:     var(--sp-8) var(--sp-16);
+  background:  var(--white);
+  border-top:  1px solid var(--gray-10);
+  flex-shrink: 0;
+}
+
+.ctrlBtn {
+  font-size:      var(--t-small);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+  padding:        var(--sp-4) var(--sp-8);
+  white-space:    nowrap;
+}
+
+.ctrlBtn:hover { color: var(--black); }
+
+.ctrlBtn--active {
+  color:          var(--accent);
+}
+
+.ctrlBtn--annotate {
+  color:          var(--black);
+  font-weight:    500;
+  margin-left:    auto;
+}
+
+.ctrlSep {
+  width:      1px;
+  height:     16px;
+  background: var(--gray-10);
+}
+
+.timecode {
+  font-family:             var(--font-pixel);
+  font-size:               10px;
+  color:                   var(--black);
+  -webkit-font-smoothing:  none;
+  image-rendering:         pixelated;
+  letter-spacing:          .04em;
+  white-space:             nowrap;
+}
+
+.timecodeAlt {
+  font-family:             var(--font-pixel);
+  font-size:               10px;
+  color:                   var(--gray-50);
+  -webkit-font-smoothing:  none;
+  image-rendering:         pixelated;
+}
+
+/* ── Timeline ───────────────────────────────── */
+.timeline {
+  position:   relative;
+  height:     24px;
+  background: var(--gray-00);
+  cursor:     pointer;
+  flex-shrink: 0;
+  display:    flex;
+  align-items: center;
+}
+
+.timelineTrack {
+  position:   absolute;
+  left:       0;
+  right:      0;
+  height:     2px;
+  background: var(--gray-10);
+  top:        50%;
+  transform:  translateY(-50%);
+}
+
+.timelineBuffered {
+  position:   absolute;
+  left:       0;
+  height:     2px;
+  background: var(--gray-30);
+  top:        50%;
+  transform:  translateY(-50%);
+  pointer-events: none;
+}
+
+.timelinePlayhead {
+  position:   absolute;
+  top:        0;
+  bottom:     0;
+  width:      2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index:    2;
+}
+
+.timelineMark {
+  position:      absolute;
+  top:           4px;
+  bottom:        4px;
+  width:         2px;
+  background:    var(--black);
+  cursor:        pointer;
+  z-index:       3;
+  transform:     translateX(-1px);
+}
+
+.timelineMark:hover { background: var(--gray-50); }
+
+.timelineMarkActive { background: var(--accent) !important; }
+
+/* ── Annotation form ────────────────────────── */
+.form {
+  padding:     var(--sp-16);
+  background:  var(--gray-00);
+  border-top:  1px solid var(--gray-10);
+  flex-shrink: 0;
+}
+
+.formRow {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-16);
+  margin-bottom: var(--sp-12);
+}
+
+.formFrame {
+  display:     flex;
+  align-items: baseline;
+  gap:         var(--sp-8);
+}
+
+.formTextarea {
+  width:         100%;
+  font-size:     var(--t-body);
+  font-family:   var(--font-swiss);
+  min-height:    64px;
+  padding:       var(--sp-8) 0;
+  border-bottom: 1px solid var(--gray-10);
+  background:    transparent;
+  color:         var(--black);
+  resize:        none;
+  outline:       none;
+  margin-bottom: var(--sp-12);
+}
+
+.formTextarea:focus { border-bottom-color: var(--black); }
+.formTextarea::placeholder { color: var(--gray-50); font-size: var(--t-small); letter-spacing: .08em; }
+
+.formNameInput {
+  width:         100%;
+  font-size:     var(--t-body);
+  font-family:   var(--font-swiss);
+  padding:       var(--sp-8) 0;
+  border-bottom: 1px solid var(--gray-10);
+  background:    transparent;
+  color:         var(--black);
+  outline:       none;
+  margin-bottom: var(--sp-12);
+  letter-spacing: .04em;
+}
+
+.formNameInput::placeholder { color: var(--gray-50); font-size: var(--t-small); letter-spacing: .08em; }
+
+.formActions {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             var(--sp-16);
+  align-items:     center;
+}
+
+.formHint {
+  font-size:  var(--t-label);
+  letter-spacing: .1em;
+  color:      var(--gray-50);
+  text-transform: uppercase;
+  margin-bottom:  var(--sp-8);
+}
+
+/* ── Right column: annotation list ─────────── */
+.annotCol {
+  display:        flex;
+  flex-direction: column;
+  border-left:    1px solid var(--gray-10);
+  overflow:       hidden;
+  background:     var(--white);
+}
+
+.listHeader {
+  display:     flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding:     var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--gray-10);
+  flex-shrink: 0;
+}
+
+.listCount {
+  font-size:   var(--t-d-sm);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+}
+
+.listScroll {
+  flex:       1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-10) transparent;
+}
+
+.annotItem {
+  padding:       var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--gray-10);
+  cursor:        pointer;
+}
+
+.annotItem:hover { background: var(--gray-00); }
+
+.annotItemActive { background: var(--gray-00) !important; }
+.annotItemActive .annotTs { color: var(--accent) !important; }
+
+.annotHead {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   var(--sp-4);
+}
+
+.annotTs {
+  font-family:             var(--font-pixel);
+  font-size:               10px;
+  -webkit-font-smoothing:  none;
+  image-rendering:         pixelated;
+}
+
+.annotDrawn {
+  font-size:  10px;
+  color:      var(--gray-50);
+  letter-spacing: .04em;
+}
+
+.annotAuthor {
+  font-size:  var(--t-small);
+  font-weight: 500;
+  letter-spacing: .02em;
+  margin-bottom: var(--sp-4);
+}
+
+.annotComment {
+  font-size:   var(--t-body);
+  line-height: 1.4;
+  color:       var(--black);
+}
+
+.annotDate {
+  font-size:   var(--t-label);
+  color:       var(--gray-50);
+  margin-top:  var(--sp-8);
+  letter-spacing: .06em;
+}
+
+.empty {
+  padding:    var(--sp-32) var(--sp-16);
+  color:      var(--gray-50);
+  font-size:  var(--t-small);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.resolvedBadge {
+  font-size:  9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color:      var(--gray-30);
+  text-decoration: line-through;
+}
+
+.shareRow {
+  padding:       var(--sp-12) var(--sp-16);
+  border-top:    1px solid var(--gray-10);
+  flex-shrink:   0;
+  display:       flex;
+  flex-direction: column;
+  gap:           var(--sp-8);
+}
+
+.shareLink {
+  font-size:   var(--t-label);
+  letter-spacing: .04em;
+  color:       var(--gray-50);
+  word-break:  break-all;
+}
+
+/* ── Keyboard hints ─────────────────────────── */
+.keyHints {
+  display:     flex;
+  gap:         var(--sp-16);
+  padding:     var(--sp-8) var(--sp-16);
+  border-top:  1px solid var(--gray-10);
+  flex-shrink: 0;
+}
+
+.keyHint {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-4);
+}
+
+.keyHintKey {
+  font-size:   var(--t-label);
+  letter-spacing: .06em;
+  background:  var(--gray-10);
+  padding:     2px 4px;
+  font-family: var(--font-swiss);
+}

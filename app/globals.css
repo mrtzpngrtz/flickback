@@ -1,0 +1,352 @@
+/* ================================================================
+   FLICKBACK  —  Swiss Systems Design
+   Typeface:  Helvetica Neue · Helvetica · Arial
+   Pixel:     Press Start 2P  (live / machine data only)
+   Accent:    #FF4D00  (single active state only — never fill)
+   Ground:    #ffffff · #f0f0f0
+   Zero:      gradients · shadows · rounded corners · borders
+================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --white:      #ffffff;
+  --gray-00:    #f0f0f0;
+  --gray-10:    #e0e0e0;
+  --gray-30:    #b0b0b0;
+  --gray-50:    #808080;
+  --gray-70:    #404040;
+  --black:      #1a1a1a;
+  --accent:     #FF4D00;
+
+  --font-swiss: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --font-pixel: "Press Start 2P", monospace;
+
+  --t-label:   10px;
+  --t-small:   11px;
+  --t-body:    13px;
+  --t-d-sm:    48px;
+  --t-d-md:    72px;
+  --t-d-lg:    120px;
+
+  --sp-2:   2px;
+  --sp-4:   4px;
+  --sp-8:   8px;
+  --sp-12:  12px;
+  --sp-16:  16px;
+  --sp-24:  24px;
+  --sp-32:  32px;
+  --sp-48:  48px;
+  --sp-64:  64px;
+  --sp-96:  96px;
+
+  --bar-h:  40px;
+}
+
+html, body {
+  font-family:             var(--font-swiss);
+  font-size:               var(--t-body);
+  line-height:             1.45;
+  background:              var(--white);
+  color:                   var(--black);
+  -webkit-font-smoothing:  antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Reset ──────────────────────────────────── */
+* { border-radius: 0 !important; }
+
+a                { color: inherit; text-decoration: none; }
+button           { font-family: var(--font-swiss); background: none; border: none; cursor: pointer; color: inherit; padding: 0; }
+input, textarea  { font-family: var(--font-swiss); background: none; border: none; outline: none; color: inherit; resize: none; }
+
+/* ── Label system ───────────────────────────── */
+.lbl {
+  font-size:      var(--t-label);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+  line-height:    1;
+}
+
+.lbl-xs {
+  font-size:      9px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+}
+
+/* ── Display numerals ───────────────────────── */
+.num-lg {
+  font-size:      var(--t-d-lg);
+  font-weight:    700;
+  letter-spacing: -.05em;
+  line-height:    .9;
+  color:          var(--black);
+}
+
+.num-md {
+  font-size:      var(--t-d-md);
+  font-weight:    700;
+  letter-spacing: -.04em;
+  line-height:    .9;
+}
+
+.num-sm {
+  font-size:      var(--t-d-sm);
+  font-weight:    700;
+  letter-spacing: -.03em;
+  line-height:    1;
+}
+
+/* ── Pixel font — machine data only ─────────── */
+.px {
+  font-family:             var(--font-pixel);
+  font-size:               10px;
+  -webkit-font-smoothing:  none;
+  -moz-osx-font-smoothing: unset;
+  image-rendering:         pixelated;
+  line-height:             1.6;
+}
+
+.px-lg {
+  font-family:             var(--font-pixel);
+  font-size:               18px;
+  -webkit-font-smoothing:  none;
+  -moz-osx-font-smoothing: unset;
+  image-rendering:         pixelated;
+  line-height:             1.4;
+}
+
+/* ── Accent — active state only ─────────────── */
+.accent { color: var(--accent) !important; }
+.accent-bg { background: var(--accent) !important; }
+
+/* ── Registration marks ─────────────────────── */
+.reg::before   { content: '+'; font-size: 13px; font-weight: 300; color: var(--gray-30); }
+
+/* ── Top bar ────────────────────────────────── */
+.topbar {
+  position:    fixed;
+  top:         0;
+  left:        0;
+  right:       0;
+  height:      var(--bar-h);
+  display:     flex;
+  align-items: center;
+  padding:     0 var(--sp-24);
+  background:  var(--white);
+  z-index:     200;
+  border-bottom: 1px solid var(--gray-10);
+}
+
+.topbar__mark {
+  font-size:      11px;
+  font-weight:    700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.topbar__nav {
+  display:     flex;
+  gap:         var(--sp-32);
+  margin-left: var(--sp-48);
+}
+
+.topbar__nav a {
+  font-size:      var(--t-small);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+  transition:     color .1s;
+}
+
+.topbar__nav a:hover,
+.topbar__nav a[aria-current] { color: var(--black); }
+
+.topbar__right {
+  margin-left: auto;
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-24);
+}
+
+/* ── Shell ──────────────────────────────────── */
+.shell {
+  min-height: 100vh;
+  padding-top: var(--bar-h);
+}
+
+/* ── Main actions button ─────────────────────── */
+.btn {
+  font-size:      var(--t-small);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color:          var(--black);
+  padding:        var(--sp-8) var(--sp-16);
+  background:     var(--gray-00);
+}
+
+.btn:hover { background: var(--gray-10); }
+
+.btn--primary {
+  background: var(--black);
+  color:      var(--white);
+}
+
+.btn--primary:hover { background: var(--gray-70); }
+
+.btn--ghost {
+  background:  transparent;
+  color:       var(--gray-50);
+  padding:     var(--sp-4) var(--sp-8);
+}
+
+.btn--ghost:hover { color: var(--black); }
+
+.btn--danger {
+  color: var(--accent);
+}
+
+/* ── Table / list rows ──────────────────────── */
+.row {
+  display:         grid;
+  align-items:     center;
+  padding:         var(--sp-12) 0;
+  border-bottom:   1px solid var(--gray-10);
+}
+
+.row:hover { background: var(--gray-00); }
+
+/* ── Status dot ─────────────────────────────── */
+.status-dot {
+  display:       inline-block;
+  width:         6px;
+  height:        6px;
+  background:    var(--gray-30);
+  border-radius: 0 !important;
+}
+
+.status-dot--ready  { background: var(--black); }
+.status-dot--error  { background: var(--accent); }
+.status-dot--live   { background: var(--accent); animation: blink .8s step-end infinite; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Input fields ───────────────────────────── */
+.field {
+  width:         100%;
+  font-size:     var(--t-body);
+  padding:       var(--sp-8) 0;
+  border-bottom: 1px solid var(--gray-10);
+  color:         var(--black);
+  background:    transparent;
+}
+
+.field:focus { border-bottom-color: var(--black); }
+.field::placeholder { color: var(--gray-50); font-size: var(--t-small); letter-spacing: .08em; }
+
+.field--area {
+  min-height:    72px;
+  padding-top:   var(--sp-8);
+}
+
+/* ── Drop zone ──────────────────────────────── */
+.dropzone {
+  position:   relative;
+  width:      100%;
+  min-height: 320px;
+  display:    flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap:        var(--sp-16);
+  cursor:     pointer;
+}
+
+.dropzone__corner {
+  position:   absolute;
+  width:      20px;
+  height:     20px;
+  font-size:  16px;
+  color:      var(--gray-30);
+  line-height: 1;
+}
+
+.dropzone__corner--tl { top: 0;    left: 0;  }
+.dropzone__corner--tr { top: 0;    right: 0; text-align: right; }
+.dropzone__corner--bl { bottom: 0; left: 0;  }
+.dropzone__corner--br { bottom: 0; right: 0; text-align: right; }
+
+.dropzone--over .dropzone__corner { color: var(--accent); }
+
+.dropzone__label {
+  font-size:      var(--t-d-sm);
+  font-weight:    700;
+  letter-spacing: -.02em;
+  color:          var(--gray-10);
+  pointer-events: none;
+  user-select:    none;
+  transition:     color .15s;
+}
+
+.dropzone--over .dropzone__label { color: var(--black); }
+
+.dropzone__sublabel {
+  font-size:      var(--t-small);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+}
+
+/* ── Progress bar ───────────────────────────── */
+.progress-track {
+  width:      100%;
+  height:     2px;
+  background: var(--gray-10);
+}
+
+.progress-fill {
+  height:     100%;
+  background: var(--black);
+  transition: width .2s linear;
+}
+
+.progress-fill--complete { background: var(--accent); }
+
+/* ── Page padding ───────────────────────────── */
+.page {
+  padding: var(--sp-48) var(--sp-24);
+}
+
+.page--wide {
+  max-width: none;
+}
+
+/* ── Annotation badge ───────────────────────── */
+.role-badge {
+  font-size:      9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+}
+
+.role-badge--client { color: var(--accent); }
+
+/* ── Utility ────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
