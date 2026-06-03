@@ -296,18 +296,12 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             {/* Frame + draw toolbar */}
             <div className={s.formToolbar}>
               <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
-              <span className={s.ctrlSep} style={{ margin: '0 8px' }} />
-              <button
-                className={`${s.ctrlBtn}${drawActive ? ` ${s['ctrlBtn--active']}` : ''}`}
-                style={{ fontSize: 11 }}
-                onClick={() => setDrawActive(p => !p)}
-              >
-                {drawActive ? '● DRAW' : 'DRAW'}
-              </button>
+
+              {/* draw tools — only when active */}
               {drawActive && (
-                <>
+                <div className={s.drawTools}>
                   {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
-                    <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
+                    <button key={c} onClick={() => setDrawColor(c)} style={{ width: 14, height: 14, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
                   ))}
                   <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
                   {[{ w: 1.5, l: '—' }, { w: 4, l: '━' }].map(({ w, l }) => (
@@ -316,9 +310,14 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                   <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
                   <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>↩</button>
                   <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>✕</button>
-                  {drawnPaths.length > 0 && <span className="lbl" style={{ color: 'var(--accent)', marginLeft: 4 }}>{drawnPaths.length}</span>}
-                </>
+                  {drawnPaths.length > 0 && <span className="lbl" style={{ color: 'var(--accent)' }}>{drawnPaths.length}</span>}
+                </div>
               )}
+
+              {/* draw toggle — pushed to the right */}
+              <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>
+                ✏ DRAW
+              </button>
             </div>
             {isClient && (
               <input className={s.formNameInput} placeholder="YOUR NAME" value={authorName} onChange={e => setAuthorName(e.target.value)} />

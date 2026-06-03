@@ -159,11 +159,39 @@
 }
 
 .formToolbar {
+  display:         flex;
+  align-items:     center;
+  gap:             var(--sp-8);
+  margin-bottom:   var(--sp-12);
+}
+
+.drawTools {
   display:     flex;
   align-items: center;
-  gap:         var(--sp-8);
-  margin-bottom: var(--sp-12);
-  flex-wrap:   wrap;
+  gap:         var(--sp-6);
+  flex:        1;
+}
+
+.drawBtn {
+  margin-left:    auto;
+  font-size:      10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-family:    var(--font-swiss);
+  padding:        5px 12px;
+  background:     var(--gray-10);
+  color:          var(--gray-70);
+  border:         none;
+  cursor:         pointer;
+  white-space:    nowrap;
+  transition:     background .1s, color .1s;
+}
+
+.drawBtn:hover { background: var(--gray-30); color: var(--black); }
+
+.drawBtn--active {
+  background: var(--black);
+  color:      var(--white);
 }
 
 .formRow {
