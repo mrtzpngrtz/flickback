@@ -11,6 +11,7 @@ interface Props {
   annotations: AnnotationData[]
   activeId: string | null
   videoId: string
+  videoRef: React.RefObject<HTMLVideoElement | null>
   onSeek: (t: number) => void
   onSelectAnnotation: (a: AnnotationData) => void
   onAnnotationRangeChange: (id: string, start: number, end: number | null) => void
@@ -33,9 +34,25 @@ function tickInterval(duration: number): { major: number; minor: number } {
 
 export default function Timeline({
   currentTime, duration, buffered, annotations, activeId,
-  videoId, onSeek, onSelectAnnotation, onAnnotationRangeChange,
+  videoId, videoRef, onSeek, onSelectAnnotation, onAnnotationRangeChange,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
+  const playheadRef = useRef<HTMLDivElement>(null)
+
+  // Drive playhead via RAF — no React re-render needed
+  useEffect(() => {
+    let raf: number
+    const tick = () => {
+      const v = videoRef.current
+      const ph = playheadRef.current
+      if (v && ph && duration) {
+        ph.style.left = `${(v.currentTime / duration) * 100}%`
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [videoRef, duration])
   const [hoverTime, setHoverTime] = useState<number | null>(null)
   const [scrubbing, setScrubbing] = useState(false)
   const dragRef = useRef<{ annotId: string; handle: 'start' | 'end' | 'move'; initX: number; initTs: number; initEnd: number | null } | null>(null)
@@ -179,8 +196,8 @@ export default function Timeline({
           </div>
         )}
 
-        {/* Playhead */}
-        <div className={s.playhead} style={{ left: duration ? `${(currentTime / duration) * 100}%` : '0%' }} />
+        {/* Playhead — driven by RAF, not React state */}
+        <div ref={playheadRef} className={s.playhead} style={{ left: '0%' }} />
       </div>
     </div>
   )

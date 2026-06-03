@@ -51,6 +51,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [buffered, setBuffered] = useState(0)
+  const lastTimeUpdateRef = useRef(0)        // throttle time state updates
+  const currentTimeRef = useRef(0)           // always-current time for canvas/RAF
   const [playbackRate, setPlaybackRate] = useState(1)
   const [volume, setVolume] = useState(1)
   const [muted, setMuted] = useState(false)
@@ -144,7 +146,13 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     }
   }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs])
 
-  useEffect(() => { redraw() }, [redraw])
+  // RAF loop for canvas — decoupled from React renders
+  useEffect(() => {
+    let raf: number
+    const loop = () => { redraw(); raf = requestAnimationFrame(loop) }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [redraw])
 
   // Canvas events
   const canvasPoint = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
@@ -297,9 +305,18 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           onClick={onVideoClick}
         >
           <video ref={videoRef} className={s.video} src={videoUrl}
-            onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
+            onTimeUpdate={() => {
+              const v = videoRef.current; if (!v) return
+              currentTimeRef.current = v.currentTime
+              const now = performance.now()
+              if (now - lastTimeUpdateRef.current > 100) {
+                lastTimeUpdateRef.current = now
+                setCurrentTime(v.currentTime)
+              }
+            }}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
             onProgress={() => { const v = videoRef.current; if (v?.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)) }}
+            onSeeked={() => { const v = videoRef.current; if (!v) return; currentTimeRef.current = v.currentTime; setCurrentTime(v.currentTime) }}
             onPlay={() => { setIsPlaying(true); setActiveId(null) }} onPause={() => setIsPlaying(false)} playsInline
           />
           <canvas ref={canvasRef} className={s.canvas} style={canvasStyle}
@@ -372,6 +389,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           annotations={annotations}
           activeId={activeId}
           videoId={videoId}
+          videoRef={videoRef}
           onSeek={t => { const v = videoRef.current; if (v) v.currentTime = t }}
           onSelectAnnotation={selectAnnotation}
           onAnnotationRangeChange={(id, start, end) => {
