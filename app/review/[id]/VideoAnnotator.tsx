@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import s from './VideoAnnotator.module.css'
+import Timeline from './Timeline'
 
 interface Point { x: number; y: number }
 
@@ -164,8 +165,6 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const changeRate = useCallback((rate: number) => { const v = videoRef.current; if (!v) return; v.playbackRate = rate; setPlaybackRate(rate) }, [])
   const changeVolume = useCallback((val: number) => { const v = videoRef.current; if (!v) return; v.volume = val; v.muted = false; setVolume(val); setMuted(false) }, [])
   const toggleMute = useCallback(() => { const v = videoRef.current; if (!v) return; v.muted = !v.muted; setMuted(v.muted) }, [])
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => { const v = videoRef.current; if (!v || !duration) return; const r = e.currentTarget.getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * duration }
-
   // Annotation actions
   const openAnnotation = useCallback(() => {
     const v = videoRef.current; if (!v) return
@@ -304,25 +303,19 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
         </div>
 
         {/* Timeline */}
-        <div className={s.timeline} onClick={seek}>
-          <div className={s.timelineTrack} />
-          <div className={s.timelineBuffered} style={{ width: duration ? `${(buffered / duration) * 100}%` : '0%' }} />
-          <div className={s.timelinePlayhead} style={{ left: duration ? `${(currentTime / duration) * 100}%` : '0%' }} />
-          {annotations.map(a => a.endTimestamp && duration ? (
-            <div key={a.id}
-              className={`${s.timelineRange}${a.id === activeId ? ` ${s.timelineRangeActive}` : ''}`}
-              style={{ left: `${(a.timestamp / duration) * 100}%`, width: `${((a.endTimestamp - a.timestamp) / duration) * 100}%` }}
-              onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
-              title={`${formatShort(a.timestamp)} → ${formatShort(a.endTimestamp)} — ${a.author}`}
-            />
-          ) : (
-            <div key={a.id} className={`${s.timelineMark}${a.id === activeId ? ` ${s.timelineMarkActive}` : ''}`}
-              style={{ left: duration ? `${(a.timestamp / duration) * 100}%` : '0%' }}
-              onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
-              title={`${formatShort(a.timestamp)} — ${a.author}`}
-            />
-          ))}
-        </div>
+        <Timeline
+          currentTime={currentTime}
+          duration={duration}
+          buffered={buffered}
+          annotations={annotations}
+          activeId={activeId}
+          videoId={videoId}
+          onSeek={t => { const v = videoRef.current; if (v) v.currentTime = t }}
+          onSelectAnnotation={selectAnnotation}
+          onAnnotationRangeChange={(id, start, end) => {
+            setAnnotations(p => p.map(a => a.id === id ? { ...a, timestamp: start, endTimestamp: end } : a).sort((a, b) => a.timestamp - b.timestamp))
+          }}
+        />
 
         {/* Annotation form */}
         {pendingTs !== null && (
