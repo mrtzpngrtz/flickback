@@ -18,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="topbar__mark">FLICKBACK</Link>
             <nav className="topbar__nav">
               <Link href="/">LIBRARY</Link>
+              <Link href="/projects">PROJECTS</Link>
               <Link href="/upload">UPLOAD</Link>
               <Link href="/users">USERS</Link>
             </nav>

@@ -61,6 +61,9 @@ export default function VideoAnnotator({
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawnPaths, setDrawnPaths] = useState<Point[][]>([])
   const [currentPath, setCurrentPath] = useState<Point[]>([])
+  const [drawColor, setDrawColor] = useState('#FF4D00')
+  const [drawWidth, setDrawWidth] = useState(2)
+  const [pathMeta, setPathMeta] = useState<{ color: string; width: number }[]>([])
   const [pendingTs, setPendingTs] = useState<number | null>(null)
   const [commentText, setCommentText] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -100,13 +103,13 @@ export default function VideoAnnotator({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.strokeStyle = '#FF4D00'
-    ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
 
-    const renderPath = (path: Point[]) => {
+    const renderPath = (path: Point[], color = '#FF4D00', width = 2) => {
       if (path.length < 2) return
+      ctx.strokeStyle = color
+      ctx.lineWidth = width
       ctx.beginPath()
       ctx.moveTo(path[0].x * canvas.width, path[0].y * canvas.height)
       for (let i = 1; i < path.length; i++) {
@@ -118,14 +121,18 @@ export default function VideoAnnotator({
     const active = annotations.find(a => a.id === activeId)
     if (active?.drawing) {
       try {
-        const paths = JSON.parse(active.drawing) as Point[][]
-        paths.forEach(renderPath)
+        const parsed = JSON.parse(active.drawing) as { paths: Point[][]; meta?: { color: string; width: number }[] }
+        if (Array.isArray(parsed)) {
+          (parsed as Point[][]).forEach(p => renderPath(p))
+        } else {
+          parsed.paths.forEach((p, i) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
+        }
       } catch {}
     }
 
-    drawnPaths.forEach(renderPath)
-    if (currentPath.length > 1) renderPath(currentPath)
-  }, [annotations, activeId, drawnPaths, currentPath])
+    drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
+    if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
+  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth])
 
   useEffect(() => { redraw() }, [redraw])
 
@@ -150,9 +157,21 @@ export default function VideoAnnotator({
     setIsDrawing(false)
     if (currentPath.length > 1) {
       setDrawnPaths(prev => [...prev, currentPath])
+      setPathMeta(prev => [...prev, { color: drawColor, width: drawWidth }])
     }
     setCurrentPath([])
   }
+
+  const undoStroke = useCallback(() => {
+    setDrawnPaths(prev => prev.slice(0, -1))
+    setPathMeta(prev => prev.slice(0, -1))
+  }, [])
+
+  const clearStrokes = useCallback(() => {
+    setDrawnPaths([])
+    setPathMeta([])
+    setCurrentPath([])
+  }, [])
 
   // Video controls
   const togglePlay = useCallback(() => {
@@ -181,6 +200,7 @@ export default function VideoAnnotator({
   const cancelAnnotation = useCallback(() => {
     setPendingTs(null)
     setDrawnPaths([])
+    setPathMeta([])
     setCurrentPath([])
     setDrawMode(false)
     setCommentText('')
@@ -191,7 +211,7 @@ export default function VideoAnnotator({
     if (isClient && !authorName.trim()) return
     setSubmitting(true)
 
-    const drawing = drawnPaths.length > 0 ? JSON.stringify(drawnPaths) : undefined
+    const drawing = drawnPaths.length > 0 ? JSON.stringify({ paths: drawnPaths, meta: pathMeta }) : undefined
     const endpoint = isClient
       ? `/api/client/${shareToken}/annotations`
       : `/api/videos/${videoId}/annotations`
@@ -261,10 +281,11 @@ export default function VideoAnnotator({
       if (e.key === 'a' || e.key === 'A') openAnnotation()
       if (e.key === 'd' || e.key === 'D') setDrawMode(prev => !prev)
       if (e.key === 'Escape') cancelAnnotation()
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undoStroke() }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [togglePlay, openAnnotation, cancelAnnotation])
+  }, [togglePlay, openAnnotation, cancelAnnotation, undoStroke])
 
   const pointerEvents = drawMode ? 'all' : 'none'
   const canvasStyle = { pointerEvents, cursor: drawMode ? 'crosshair' : 'default' } as React.CSSProperties
@@ -316,6 +337,33 @@ export default function VideoAnnotator({
               >
                 {drawMode ? '● DRAW' : 'DRAW'}
               </button>
+              {drawMode && (
+                <>
+                  {/* Color swatches */}
+                  {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setDrawColor(c)}
+                      style={{
+                        width: 14, height: 14, background: c,
+                        border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)',
+                        cursor: 'pointer', flexShrink: 0,
+                      }}
+                    />
+                  ))}
+                  <span className={s.ctrlSep} />
+                  {/* Stroke width */}
+                  {[{ w: 1.5, label: '—' }, { w: 4, label: '━' }].map(({ w, label }) => (
+                    <button key={w} className={`${s.ctrlBtn}${drawWidth === w ? ` ${s['ctrlBtn--active']}` : ''}`}
+                      onClick={() => setDrawWidth(w)} style={{ fontSize: 14, lineHeight: 1 }}>
+                      {label}
+                    </button>
+                  ))}
+                  <span className={s.ctrlSep} />
+                  <button className={s.ctrlBtn} onClick={undoStroke} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>⌘Z</button>
+                  <button className={s.ctrlBtn} onClick={clearStrokes} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>CLEAR</button>
+                </>
+              )}
               <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>
                 + ANNOTATE
               </button>

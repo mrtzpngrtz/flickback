@@ -1,13 +1,13 @@
 /* ================================================================
    FLICKBACK  —  Swiss Systems Design
-   Typeface:  Helvetica Neue · Helvetica · Arial
-   Pixel:     Press Start 2P  (live / machine data only)
+   Typeface:  Helvetica Neue · Helvetica · Arial (sans)
+              Roboto Mono (mono / machine data)
    Accent:    #FF4D00  (single active state only — never fill)
    Ground:    #ffffff · #f0f0f0
    Zero:      gradients · shadows · rounded corners · borders
 ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -26,7 +26,7 @@
   --accent:     #FF4D00;
 
   --font-swiss: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-  --font-pixel: "Press Start 2P", monospace;
+  --font-mono:  "Roboto Mono", monospace;
 
   --t-label:   10px;
   --t-small:   11px;
@@ -105,23 +105,21 @@ input, textarea  { font-family: var(--font-swiss); background: none; border: non
   line-height:    1;
 }
 
-/* ── Pixel font — machine data only ─────────── */
+/* ── Mono font — machine / timecode data ─────── */
 .px {
-  font-family:             var(--font-pixel);
-  font-size:               10px;
-  -webkit-font-smoothing:  none;
-  -moz-osx-font-smoothing: unset;
-  image-rendering:         pixelated;
-  line-height:             1.6;
+  font-family: var(--font-mono);
+  font-size:   10px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: .04em;
 }
 
 .px-lg {
-  font-family:             var(--font-pixel);
-  font-size:               18px;
-  -webkit-font-smoothing:  none;
-  -moz-osx-font-smoothing: unset;
-  image-rendering:         pixelated;
-  line-height:             1.4;
+  font-family: var(--font-mono);
+  font-size:   14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: .02em;
 }
 
 /* ── Accent — active state only ─────────────── */

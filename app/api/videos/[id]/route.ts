@@ -28,7 +28,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(body.duration && { duration: body.duration }),
       ...(body.width && { width: body.width }),
       ...(body.height && { height: body.height }),
+      ...(body.description !== undefined && { description: body.description || null }),
+      ...(body.versionNote !== undefined && { versionNote: body.versionNote || null }),
+      ...(body.tags !== undefined && { tags: body.tags }),
+      ...(body.projectId !== undefined && { projectId: body.projectId || null }),
     },
+    include: { project: { select: { id: true, name: true } } },
   })
   return NextResponse.json({ ...video, size: video.size.toString() })
 }
