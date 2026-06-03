@@ -24,6 +24,20 @@
   --gray-70:    #404040;
   --black:      #1a1a1a;
   --accent:     #FF4D00;
+}
+
+html.dark {
+  --white:      #111111;
+  --gray-00:    #1a1a1a;
+  --gray-10:    #2a2a2a;
+  --gray-30:    #444444;
+  --gray-50:    #888888;
+  --gray-70:    #bbbbbb;
+  --black:      #f0f0f0;
+  --accent:     #FF4D00;
+}
+
+:root {
 
   --font-swiss: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
   --font-mono:  "Roboto Mono", monospace;
