@@ -41,6 +41,87 @@
   transform: translate(-50%, -50%);
 }
 
+/* ── Video markers (post-its) ───────────────── */
+.marker {
+  position:    absolute;
+  transform:   translate(-50%, -100%);
+  z-index:     20;
+  cursor:      pointer;
+  display:     flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.marker::after {
+  content:    '';
+  width:      0;
+  height:     0;
+  border-left:  5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top:   5px solid var(--black);
+}
+
+.markerNum {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           24px;
+  height:          24px;
+  background:      var(--black);
+  color:           var(--white);
+  font-size:       10px;
+  font-weight:     700;
+  font-family:     var(--font-swiss);
+  letter-spacing:  .04em;
+  flex-shrink:     0;
+}
+
+.markerActive .markerNum {
+  background: var(--accent);
+  width:      28px;
+  height:     28px;
+  font-size:  11px;
+}
+
+.markerActive::after { border-top-color: var(--accent); }
+
+.markerPending .markerNum {
+  background:   transparent;
+  border:       2px dashed var(--accent);
+  color:        var(--accent);
+}
+
+.markerPending::after { border-top-color: var(--accent); }
+
+.markerPopup {
+  position:   absolute;
+  bottom:     calc(100% + 8px);
+  left:       50%;
+  transform:  translateX(-50%);
+  background: var(--white);
+  border:     1px solid var(--gray-10);
+  padding:    8px 10px;
+  min-width:  160px;
+  max-width:  240px;
+  pointer-events: none;
+  z-index:    30;
+}
+
+.markerAuthor {
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+  margin-bottom:  4px;
+}
+
+.markerComment {
+  font-size:   12px;
+  line-height: 1.4;
+  color:       var(--black);
+}
+
 /* ── Controls bar ───────────────────────────── */
 .controls {
   display:     flex;

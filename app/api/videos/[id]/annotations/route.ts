@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params
   const body = await req.json()
-  const { timestamp, endTimestamp, drawing, comment, author, role } = body
+  const { timestamp, endTimestamp, markerX, markerY, drawing, comment, author, role } = body
 
   if (timestamp == null || !comment || !author) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -26,6 +26,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       videoId: id,
       timestamp: parseFloat(timestamp),
       endTimestamp: endTimestamp != null ? parseFloat(endTimestamp) : null,
+      markerX: markerX != null ? parseFloat(markerX) : null,
+      markerY: markerY != null ? parseFloat(markerY) : null,
       drawing: drawing ?? null,
       comment,
       author,

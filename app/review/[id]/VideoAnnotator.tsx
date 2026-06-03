@@ -10,6 +10,8 @@ export interface AnnotationData {
   id: string
   timestamp: number
   endTimestamp?: number | null
+  markerX?: number | null
+  markerY?: number | null
   drawing?: string | null
   comment: string
   author: string
@@ -66,6 +68,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   // New annotation form
   const [pendingTs, setPendingTs] = useState<number | null>(null)
   const [pendingEnd, setPendingEnd] = useState<number | null>(null)
+  const [pendingMarker, setPendingMarker] = useState<{ x: number; y: number } | null>(null)
   const [commentText, setCommentText] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -172,7 +175,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   }, [])
 
   const cancelAnnotation = useCallback(() => {
-    setPendingTs(null); setPendingEnd(null); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
+    setPendingTs(null); setPendingEnd(null); setPendingMarker(null)
+    setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
   }, [])
 
   const submitAnnotation = async () => {
@@ -187,6 +191,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
         body: JSON.stringify({
           timestamp: pendingTs,
           endTimestamp: pendingEnd && pendingEnd > pendingTs! ? pendingEnd : undefined,
+          markerX: pendingMarker?.x ?? undefined,
+          markerY: pendingMarker?.y ?? undefined,
           drawing, comment: commentText,
           author: isClient ? authorName : 'Director',
           role: isClient ? 'CLIENT' : 'ADMIN',
@@ -262,11 +268,34 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const canvasStyle = { pointerEvents: (drawActive ? 'all' : 'none') as React.CSSProperties['pointerEvents'], cursor: drawActive ? 'crosshair' : 'default' }
 
+  const onVideoClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (drawActive) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    const v = videoRef.current
+    if (!v) return
+    if (pendingTs !== null) {
+      // update marker position on existing pending annotation
+      setPendingMarker({ x, y })
+    } else {
+      // open new annotation at this position
+      v.pause()
+      setPendingTs(v.currentTime)
+      setPendingMarker({ x, y })
+      setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setCommentText('')
+    }
+  }, [drawActive, pendingTs])
+
   return (
     <div className={s.root}>
       {/* ── Video column ── */}
       <div className={s.videoCol}>
-        <div className={s.videoWrapper}>
+        <div
+          className={s.videoWrapper}
+          style={{ cursor: drawActive ? 'crosshair' : pendingTs !== null ? 'crosshair' : 'default' }}
+          onClick={onVideoClick}
+        >
           <video ref={videoRef} className={s.video} src={videoUrl}
             onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
@@ -276,6 +305,32 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <canvas ref={canvasRef} className={s.canvas} style={canvasStyle}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           />
+
+          {/* Saved annotation markers */}
+          {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => (
+            <div
+              key={a.id}
+              className={`${s.marker}${a.id === activeId ? ` ${s.markerActive}` : ''}`}
+              style={{ left: `${a.markerX! * 100}%`, top: `${a.markerY! * 100}%` }}
+              onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
+              title={`${a.author}: ${a.comment}`}
+            >
+              <span className={s.markerNum}>{i + 1}</span>
+              {a.id === activeId && (
+                <div className={s.markerPopup}>
+                  <div className={s.markerAuthor}>{a.author}</div>
+                  <div className={s.markerComment}>{a.comment}</div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Pending marker preview */}
+          {pendingMarker && (
+            <div className={`${s.marker} ${s.markerPending}`} style={{ left: `${pendingMarker.x * 100}%`, top: `${pendingMarker.y * 100}%` }}>
+              <span className={s.markerNum}>+</span>
+            </div>
+          )}
         </div>
 
         {/* Controls */}

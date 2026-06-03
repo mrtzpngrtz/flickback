@@ -61,6 +61,8 @@ model Annotation {
   videoId      String
   timestamp    Float
   endTimestamp Float?
+  markerX      Float?
+  markerY      Float?
   drawing      String?
   comment      String
   author       String
