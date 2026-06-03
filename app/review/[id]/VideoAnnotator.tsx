@@ -470,6 +470,22 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                     }}
                   />
                   <div className={s.inlineActions}>
+                    {/* Draw toggle */}
+                    <button
+                      className={s.inlineDrawBtn}
+                      style={{ background: drawActive ? 'var(--black)' : undefined, color: drawActive ? 'var(--white)' : undefined }}
+                      onClick={() => setDrawActive(p => !p)}
+                      title="Draw on frame"
+                    >✏</button>
+                    {drawActive && (
+                      <>
+                        {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
+                          <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
+                        ))}
+                        <button style={{ fontSize: 11, color: 'var(--gray-50)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0}>↩</button>
+                      </>
+                    )}
+                    <span style={{ flex: 1 }} />
                     <button className={s.inlineCancelBtn} onClick={cancelAnnotation}>✕</button>
                     <button
                       className={s.inlineSaveBtn}
@@ -530,41 +546,6 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           }}
         />
 
-        {/* Annotation toolbar — draw + range when form is open */}
-        {pendingTs !== null && (
-          <div className={s.form}>
-            <div className={s.formToolbar}>
-              <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
-              {pendingEnd ? (
-                <>
-                  <span className={s.timecodeAlt}> → </span>
-                  <span className={s.timecode}>{formatTimecode(pendingEnd)}</span>
-                  <button className={s.ctrlBtn} style={{ fontSize: 9, opacity: .6 }} onClick={() => setPendingEnd(null)}>✕</button>
-                </>
-              ) : (
-                <button className={s.ctrlBtn} style={{ fontSize: 10, marginLeft: 4 }}
-                  onClick={() => { const v = videoRef.current; if (v) setPendingEnd(v.currentTime) }}
-                >+ END</button>
-              )}
-              {drawActive && (
-                <div className={s.drawTools}>
-                  {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
-                    <button key={c} onClick={() => setDrawColor(c)} style={{ width: 14, height: 14, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
-                  ))}
-                  <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
-                  {[{ w: 1.5, l: '—' }, { w: 4, l: '━' }].map(({ w, l }) => (
-                    <button key={w} className={`${s.ctrlBtn}${drawWidth === w ? ` ${s['ctrlBtn--active']}` : ''}`} onClick={() => setDrawWidth(w)} style={{ fontSize: 13 }}>{l}</button>
-                  ))}
-                  <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
-                  <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>↩</button>
-                  <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>✕</button>
-                </div>
-              )}
-              <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>✏ DRAW</button>
-              <button className="btn btn--ghost" style={{ marginLeft: 8, fontSize: 10 }} onClick={cancelAnnotation}>CANCEL</button>
-            </div>
-          </div>
-        )}
 
         {/* Key hints */}
         {!isClient && pendingTs === null && (

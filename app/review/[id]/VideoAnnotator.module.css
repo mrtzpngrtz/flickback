@@ -191,6 +191,18 @@
   padding-top:     6px;
 }
 
+.inlineDrawBtn {
+  font-size:   12px;
+  color:       var(--gray-50);
+  background:  var(--gray-00);
+  border:      none;
+  cursor:      pointer;
+  padding:     2px 6px;
+  flex-shrink: 0;
+}
+
+.inlineDrawBtn:hover { color: var(--black); }
+
 .inlineCancelBtn {
   font-size:   11px;
   color:       var(--gray-50);

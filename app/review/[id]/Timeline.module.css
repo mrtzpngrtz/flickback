@@ -1,16 +1,17 @@
 .root {
   flex-shrink: 0;
-  background:  var(--gray-00);
-  border-top:  1px solid var(--gray-10);
   user-select: none;
+  background:  var(--white);
 }
 
 /* ── Ruler ── */
 .ruler {
-  position:   relative;
-  height:     20px;
-  overflow:   hidden;
+  position:      relative;
+  height:        18px;
+  overflow:      hidden;
+  border-top:    1px solid var(--gray-10);
   border-bottom: 1px solid var(--gray-10);
+  background:    var(--gray-00);
 }
 
 .tickMajor,
@@ -26,21 +27,23 @@
 
 .tickLabel {
   position:    absolute;
-  top:         4px;
+  top:         3px;
   left:        3px;
   font-family: var(--font-mono);
-  font-size:   9px;
+  font-size:   8px;
   color:       var(--gray-50);
   white-space: nowrap;
   pointer-events: none;
 }
 
-/* ── Track ── */
-.track {
+/* ── Scrub track (top) ── */
+.scrubTrack {
   position:   relative;
-  height:     40px;
-  cursor:     crosshair;
+  height:     20px;
+  cursor:     col-resize;
   overflow:   hidden;
+  background: var(--gray-00);
+  border-bottom: 2px solid var(--gray-10);
 }
 
 .buffered {
@@ -52,16 +55,25 @@
   pointer-events: none;
 }
 
-/* ── Playhead ── */
-.playhead {
-  position:        absolute;
-  top:             0;
-  bottom:          0;
-  width:           2px;
-  background:      var(--accent);
-  pointer-events:  none;
-  z-index:         10;
-  transform:       translateX(-1px);
+.scrubBar {
+  position:       absolute;
+  top:            0;
+  bottom:         0;
+  width:          2px;
+  background:     var(--accent);
+  pointer-events: none;
+  z-index:        10;
+  transform:      translateX(-1px);
+}
+
+/* ── Annotation track (bottom) ── */
+.annotTrack {
+  position:   relative;
+  height:     36px;
+  overflow:   hidden;
+  background: var(--white);
+  border-top: 1px solid var(--gray-10);
+  border-bottom: 1px solid var(--gray-10);
 }
 
 /* ── Hover ── */
@@ -70,28 +82,40 @@
   top:            0;
   bottom:         0;
   width:          1px;
-  background:     var(--gray-30);
+  background:     rgba(128,128,128,.3);
   pointer-events: none;
   z-index:        5;
 }
 
 .hoverLabel {
   position:    absolute;
-  top:         4px;
+  bottom:      3px;
   left:        4px;
   font-family: var(--font-mono);
-  font-size:   9px;
+  font-size:   8px;
   color:       var(--gray-50);
   white-space: nowrap;
-  background:  var(--gray-00);
-  padding:     1px 3px;
+  pointer-events: none;
+}
+
+/* ── Playhead line spanning both tracks ── */
+.playhead {
+  position:       absolute;
+  top:            0;
+  bottom:         0;
+  width:          1px;
+  background:     var(--accent);
+  pointer-events: none;
+  z-index:        10;
+  transform:      translateX(-0.5px);
+  opacity:        .5;
 }
 
 /* ── Point mark ── */
 .mark {
   position:   absolute;
-  top:        8px;
-  bottom:     8px;
+  top:        6px;
+  bottom:     6px;
   width:      3px;
   background: var(--black);
   cursor:     ew-resize;
@@ -99,56 +123,49 @@
   transform:  translateX(-1px);
 }
 
-.mark:hover { background: var(--gray-50); }
-.markActive { background: var(--accent) !important; }
+.mark:hover  { background: var(--gray-50); }
+.markActive  { background: var(--accent) !important; }
 
 /* ── Range ── */
 .range {
   position:   absolute;
-  top:        8px;
-  bottom:     8px;
-  background: rgba(26,26,26,.12);
+  top:        6px;
+  bottom:     6px;
+  background: var(--gray-00);
   border:     1px solid var(--gray-30);
   cursor:     pointer;
   z-index:    4;
   min-width:  4px;
 }
 
-.range:hover { background: rgba(26,26,26,.2); }
-
-.rangeActive {
-  background: rgba(255,77,0,.15) !important;
-  border-color: var(--accent) !important;
-}
+.range:hover     { border-color: var(--gray-50); }
+.rangeActive     { background: rgba(255,77,0,.1) !important; border-color: var(--accent) !important; }
 
 /* ── Drag handles ── */
 .handleLeft,
 .handleRight {
   position:   absolute;
-  top:        0;
-  bottom:     0;
-  width:      6px;
+  top:        0; bottom: 0;
+  width:      8px;
   cursor:     ew-resize;
   z-index:    7;
   background: transparent;
 }
 
-.handleLeft  { left:  -3px; }
-.handleRight { right: -3px; }
+.handleLeft  { left:  -4px; }
+.handleRight { right: -4px; }
 
 .handleLeft::after,
 .handleRight::after {
-  content:    '';
-  position:   absolute;
-  top:        20%;
-  bottom:     20%;
-  width:      3px;
-  background: var(--gray-50);
-  border-radius: 0;
+  content:  '';
+  position: absolute;
+  top: 25%; bottom: 25%;
+  width:    2px;
+  background: var(--gray-30);
 }
 
-.handleLeft::after  { left:  2px; }
-.handleRight::after { right: 2px; }
+.handleLeft::after  { left:  3px; }
+.handleRight::after { right: 3px; }
 
 .rangeActive .handleLeft::after,
 .rangeActive .handleRight::after { background: var(--accent); }

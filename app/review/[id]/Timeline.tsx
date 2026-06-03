@@ -37,16 +37,18 @@ export default function Timeline({
   videoId, videoRef, onSeek, onSelectAnnotation, onAnnotationRangeChange,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null)
-  const playheadRef = useRef<HTMLDivElement>(null)
+  const scrubBarRef = useRef<HTMLDivElement>(null)
+  const annotLineRef = useRef<HTMLDivElement>(null)
 
-  // Drive playhead via RAF — no React re-render needed
+  // Drive both playhead elements via RAF
   useEffect(() => {
     let raf: number
     const tick = () => {
       const v = videoRef.current
-      const ph = playheadRef.current
-      if (v && ph && duration) {
-        ph.style.left = `${(v.currentTime / duration) * 100}%`
+      if (v && duration) {
+        const pct = `${(v.currentTime / duration) * 100}%`
+        if (scrubBarRef.current)  scrubBarRef.current.style.left  = pct
+        if (annotLineRef.current) annotLineRef.current.style.left = pct
       }
       raf = requestAnimationFrame(tick)
     }
@@ -145,16 +147,26 @@ export default function Timeline({
         ))}
       </div>
 
-      {/* Track */}
-      <div ref={trackRef} className={s.track}
+      {/* ── Scrub track ── */}
+      <div ref={trackRef} className={s.scrubTrack}
         onMouseDown={onTrackDown}
         onMouseMove={e => setHoverTime(xToTime(e.clientX))}
         onMouseLeave={() => setHoverTime(null)}
       >
-        {/* Buffered */}
         <div className={s.buffered} style={{ width: duration ? `${(buffered / duration) * 100}%` : '0%' }} />
+        {hoverTime !== null && !scrubbing && (
+          <div className={s.hoverLine} style={{ left: `${(hoverTime / duration) * 100}%` }}>
+            <span className={s.hoverLabel}>{formatShort(hoverTime)}</span>
+          </div>
+        )}
+        <div ref={scrubBarRef} className={s.scrubBar} style={{ left: '0%' }} />
+      </div>
 
-        {/* Annotations */}
+      {/* ── Annotation track ── */}
+      <div className={s.annotTrack}>
+        {/* Playhead ghost line */}
+        <div ref={annotLineRef} className={s.playhead} style={{ left: '0%' }} />
+
         {annotations.map(a => {
           const ds = dragState?.annotId === a.id ? dragState : null
           const start = ds?.start ?? a.timestamp
@@ -188,16 +200,6 @@ export default function Timeline({
             />
           )
         })}
-
-        {/* Hover time indicator */}
-        {hoverTime !== null && !scrubbing && (
-          <div className={s.hoverLine} style={{ left: `${(hoverTime / duration) * 100}%` }}>
-            <span className={s.hoverLabel}>{formatShort(hoverTime)}</span>
-          </div>
-        )}
-
-        {/* Playhead — driven by RAF, not React state */}
-        <div ref={playheadRef} className={s.playhead} style={{ left: '0%' }} />
       </div>
     </div>
   )
