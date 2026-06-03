@@ -158,6 +158,14 @@
   flex-shrink: 0;
 }
 
+.formToolbar {
+  display:     flex;
+  align-items: center;
+  gap:         var(--sp-8);
+  margin-bottom: var(--sp-12);
+  flex-wrap:   wrap;
+}
+
 .formRow {
   display:     flex;
   align-items: center;
@@ -293,6 +301,25 @@
   line-height: 1.4;
   color:       var(--black);
 }
+
+.annotActions {
+  display:   flex;
+  gap:       var(--sp-12);
+  margin-top: var(--sp-8);
+}
+
+.annotAction {
+  font-size:      9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color:          var(--gray-50);
+  background:     none;
+  border:         none;
+  cursor:         pointer;
+  padding:        0;
+}
+
+.annotAction:hover { color: var(--black); }
 
 .annotDate {
   font-size:   var(--t-label);

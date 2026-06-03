@@ -38,43 +38,47 @@ function formatShort(s: number) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-export default function VideoAnnotator({
-  videoUrl,
-  videoId,
-  initialAnnotations,
-  isClient,
-  shareToken,
-}: Props) {
+export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
 
+  // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [buffered, setBuffered] = useState(0)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [volume, setVolume] = useState(1)
+  const [muted, setMuted] = useState(false)
+
+  // Annotations
   const [annotations, setAnnotations] = useState<AnnotationData[]>(
     [...initialAnnotations].sort((a, b) => a.timestamp - b.timestamp)
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [drawMode, setDrawMode] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+
+  // New annotation form
+  const [pendingTs, setPendingTs] = useState<number | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [authorName, setAuthorName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Drawing (only active when annotation form is open)
+  const [drawActive, setDrawActive] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawnPaths, setDrawnPaths] = useState<Point[][]>([])
   const [currentPath, setCurrentPath] = useState<Point[]>([])
   const [drawColor, setDrawColor] = useState('#FF4D00')
   const [drawWidth, setDrawWidth] = useState(2)
   const [pathMeta, setPathMeta] = useState<{ color: string; width: number }[]>([])
-  const [pendingTs, setPendingTs] = useState<number | null>(null)
-  const [commentText, setCommentText] = useState('')
-  const [authorName, setAuthorName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+
+  // Share
   const [shareUrl, setShareUrl] = useState('')
   const [copyLabel, setCopyLabel] = useState('COPY LINK')
-  const [playbackRate, setPlaybackRate] = useState(1)
-  const [volume, setVolume] = useState(1)
-  const [muted, setMuted] = useState(false)
 
-  // Sync canvas dimensions to video display size
+  // Canvas sync
   const syncCanvas = useCallback(() => {
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -88,18 +92,15 @@ export default function VideoAnnotator({
   }, [])
 
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    video.addEventListener('loadedmetadata', syncCanvas)
+    const v = videoRef.current
+    if (!v) return
+    v.addEventListener('loadedmetadata', syncCanvas)
     window.addEventListener('resize', syncCanvas)
     syncCanvas()
-    return () => {
-      video.removeEventListener('loadedmetadata', syncCanvas)
-      window.removeEventListener('resize', syncCanvas)
-    }
+    return () => { v.removeEventListener('loadedmetadata', syncCanvas); window.removeEventListener('resize', syncCanvas) }
   }, [syncCanvas])
 
-  // Draw canvas
+  // Redraw canvas
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -115,21 +116,16 @@ export default function VideoAnnotator({
       ctx.lineWidth = width
       ctx.beginPath()
       ctx.moveTo(path[0].x * canvas.width, path[0].y * canvas.height)
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x * canvas.width, path[i].y * canvas.height)
-      }
+      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x * canvas.width, path[i].y * canvas.height)
       ctx.stroke()
     }
 
     const active = annotations.find(a => a.id === activeId)
     if (active?.drawing) {
       try {
-        const parsed = JSON.parse(active.drawing) as { paths: Point[][]; meta?: { color: string; width: number }[] }
-        if (Array.isArray(parsed)) {
-          (parsed as Point[][]).forEach(p => renderPath(p))
-        } else {
-          parsed.paths.forEach((p, i) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
-        }
+        const parsed = JSON.parse(active.drawing)
+        if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
+        else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
       } catch {}
     }
 
@@ -139,178 +135,85 @@ export default function VideoAnnotator({
 
   useEffect(() => { redraw() }, [redraw])
 
-  // Canvas point (normalized 0–1)
+  // Canvas events
   const canvasPoint = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const c = canvasRef.current!
     const r = c.getBoundingClientRect()
     return { x: (e.clientX - r.left) / c.width, y: (e.clientY - r.top) / c.height }
   }
-
-  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawMode) return
-    setIsDrawing(true)
-    setCurrentPath([canvasPoint(e)])
-  }
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !drawMode) return
-    setCurrentPath(prev => [...prev, canvasPoint(e)])
-  }
+  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => { if (!drawActive) return; setIsDrawing(true); setCurrentPath([canvasPoint(e)]) }
+  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => { if (!isDrawing || !drawActive) return; setCurrentPath(p => [...p, canvasPoint(e)]) }
   const onMouseUp = () => {
     if (!isDrawing) return
     setIsDrawing(false)
-    if (currentPath.length > 1) {
-      setDrawnPaths(prev => [...prev, currentPath])
-      setPathMeta(prev => [...prev, { color: drawColor, width: drawWidth }])
-    }
+    if (currentPath.length > 1) { setDrawnPaths(p => [...p, currentPath]); setPathMeta(p => [...p, { color: drawColor, width: drawWidth }]) }
     setCurrentPath([])
   }
-
-  const undoStroke = useCallback(() => {
-    setDrawnPaths(prev => prev.slice(0, -1))
-    setPathMeta(prev => prev.slice(0, -1))
-  }, [])
-
-  const clearStrokes = useCallback(() => {
-    setDrawnPaths([])
-    setPathMeta([])
-    setCurrentPath([])
-  }, [])
 
   // Video controls
-  const togglePlay = useCallback(() => {
-    const v = videoRef.current
-    if (!v) return
-    if (v.paused) v.play(); else v.pause()
-  }, [])
+  const togglePlay = useCallback(() => { const v = videoRef.current; if (!v) return; v.paused ? v.play() : v.pause() }, [])
+  const stop = useCallback(() => { const v = videoRef.current; if (!v) return; v.pause(); v.currentTime = 0 }, [])
+  const stepFrame = useCallback((dir: 1 | -1) => { const v = videoRef.current; if (!v) return; v.pause(); v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + dir / 24)) }, [])
+  const changeRate = useCallback((rate: number) => { const v = videoRef.current; if (!v) return; v.playbackRate = rate; setPlaybackRate(rate) }, [])
+  const changeVolume = useCallback((val: number) => { const v = videoRef.current; if (!v) return; v.volume = val; v.muted = false; setVolume(val); setMuted(false) }, [])
+  const toggleMute = useCallback(() => { const v = videoRef.current; if (!v) return; v.muted = !v.muted; setMuted(v.muted) }, [])
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => { const v = videoRef.current; if (!v || !duration) return; const r = e.currentTarget.getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * duration }
 
-  const stop = useCallback(() => {
-    const v = videoRef.current
-    if (!v) return
-    v.pause()
-    v.currentTime = 0
-  }, [])
-
-  const stepFrame = useCallback((dir: 1 | -1) => {
-    const v = videoRef.current
-    if (!v) return
-    v.pause()
-    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + dir * (1 / 24)))
-  }, [])
-
-  const changeRate = useCallback((rate: number) => {
-    const v = videoRef.current
-    if (!v) return
-    v.playbackRate = rate
-    setPlaybackRate(rate)
-  }, [])
-
-  const changeVolume = useCallback((val: number) => {
-    const v = videoRef.current
-    if (!v) return
-    v.volume = val
-    v.muted = false
-    setVolume(val)
-    setMuted(false)
-  }, [])
-
-  const toggleMute = useCallback(() => {
-    const v = videoRef.current
-    if (!v) return
-    v.muted = !v.muted
-    setMuted(v.muted)
-  }, [])
-
-  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const v = videoRef.current
-    if (!v || !duration) return
-    const r = e.currentTarget.getBoundingClientRect()
-    v.currentTime = ((e.clientX - r.left) / r.width) * duration
-  }
-
-  // Open annotation form at current frame
+  // Annotation actions
   const openAnnotation = useCallback(() => {
-    const v = videoRef.current
-    if (!v) return
-    v.pause()
-    setPendingTs(v.currentTime)
-    setDrawnPaths([])
-    setCurrentPath([])
+    const v = videoRef.current; if (!v) return
+    v.pause(); setPendingTs(v.currentTime); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
   }, [])
 
   const cancelAnnotation = useCallback(() => {
-    setPendingTs(null)
-    setDrawnPaths([])
-    setPathMeta([])
-    setCurrentPath([])
-    setDrawMode(false)
-    setCommentText('')
+    setPendingTs(null); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
   }, [])
 
   const submitAnnotation = async () => {
     if (!commentText.trim() || pendingTs === null) return
     if (isClient && !authorName.trim()) return
     setSubmitting(true)
-
     const drawing = drawnPaths.length > 0 ? JSON.stringify({ paths: drawnPaths, meta: pathMeta }) : undefined
-    const endpoint = isClient
-      ? `/api/client/${shareToken}/annotations`
-      : `/api/videos/${videoId}/annotations`
-
+    const endpoint = isClient ? `/api/client/${shareToken}/annotations` : `/api/videos/${videoId}/annotations`
     try {
       const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timestamp: pendingTs,
-          drawing,
-          comment: commentText,
-          author: isClient ? authorName : 'Director',
-          role: isClient ? 'CLIENT' : 'ADMIN',
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp: pendingTs, drawing, comment: commentText, author: isClient ? authorName : 'Director', role: isClient ? 'CLIENT' : 'ADMIN' }),
       })
-      if (res.ok) {
-        const created = await res.json()
-        setAnnotations(prev => [...prev, created].sort((a, b) => a.timestamp - b.timestamp))
-        cancelAnnotation()
-      }
-    } finally {
-      setSubmitting(false)
-    }
+      if (res.ok) { const created = await res.json(); setAnnotations(p => [...p, created].sort((a, b) => a.timestamp - b.timestamp)); cancelAnnotation() }
+    } finally { setSubmitting(false) }
   }
 
   const selectAnnotation = (a: AnnotationData) => {
-    const v = videoRef.current
-    if (!v) return
-    v.pause()
-    v.currentTime = a.timestamp
-    setActiveId(a.id === activeId ? null : a.id)
+    const v = videoRef.current; if (!v) return
+    v.pause(); v.currentTime = a.timestamp; setActiveId(a.id === activeId ? null : a.id); setEditId(null)
   }
 
   const resolveAnnotation = async (id: string) => {
-    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resolved: true }),
-    })
-    if (res.ok) {
-      setAnnotations(prev => prev.map(a => a.id === id ? { ...a, resolved: true } : a))
-    }
+    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resolved: true }) })
+    if (res.ok) setAnnotations(p => p.map(a => a.id === id ? { ...a, resolved: true } : a))
+  }
+
+  const deleteAnnotation = async (id: string) => {
+    await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'DELETE' })
+    setAnnotations(p => p.filter(a => a.id !== id))
+    if (activeId === id) setActiveId(null)
+  }
+
+  const startEdit = (a: AnnotationData) => { setEditId(a.id); setEditText(a.comment) }
+
+  const saveEdit = async (id: string) => {
+    if (!editText.trim()) return
+    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ comment: editText }) })
+    if (res.ok) { setAnnotations(p => p.map(a => a.id === id ? { ...a, comment: editText } : a)); setEditId(null) }
   }
 
   const generateShare = async () => {
     const res = await fetch(`/api/videos/${videoId}/share`, { method: 'POST' })
-    if (res.ok) {
-      const { token } = await res.json()
-      const url = `${window.location.origin}/client/${token}`
-      setShareUrl(url)
-    }
+    if (res.ok) { const { token } = await res.json(); setShareUrl(`${window.location.origin}/client/${token}`) }
   }
 
-  const copyShare = () => {
-    navigator.clipboard.writeText(shareUrl)
-    setCopyLabel('COPIED')
-    setTimeout(() => setCopyLabel('COPY LINK'), 2000)
-  }
+  const copyShare = () => { navigator.clipboard.writeText(shareUrl); setCopyLabel('COPIED'); setTimeout(() => setCopyLabel('COPY LINK'), 2000) }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -319,9 +222,8 @@ export default function VideoAnnotator({
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (e.key === ' ') { e.preventDefault(); togglePlay() }
       if (e.key === 'a' || e.key === 'A') openAnnotation()
-      if (e.key === 'd' || e.key === 'D') setDrawMode(prev => !prev)
       if (e.key === 'Escape') cancelAnnotation()
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undoStroke() }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }
       if (e.key === 'ArrowRight') { e.preventDefault(); stepFrame(1) }
       if (e.key === 'ArrowLeft') { e.preventDefault(); stepFrame(-1) }
       if (e.key === '.') changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))
@@ -330,110 +232,47 @@ export default function VideoAnnotator({
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [togglePlay, openAnnotation, cancelAnnotation, undoStroke, stepFrame, changeRate, playbackRate, toggleMute])
+  }, [togglePlay, openAnnotation, cancelAnnotation, stepFrame, changeRate, playbackRate, toggleMute])
 
-  const pointerEvents = drawMode ? 'all' : 'none'
-  const canvasStyle = { pointerEvents, cursor: drawMode ? 'crosshair' : 'default' } as React.CSSProperties
+  const canvasStyle = { pointerEvents: (drawActive ? 'all' : 'none') as React.CSSProperties['pointerEvents'], cursor: drawActive ? 'crosshair' : 'default' }
 
   return (
     <div className={s.root}>
       {/* ── Video column ── */}
       <div className={s.videoCol}>
-        <div className={s.videoWrapper} ref={wrapperRef}>
-          <video
-            ref={videoRef}
-            className={s.video}
-            src={videoUrl}
+        <div className={s.videoWrapper}>
+          <video ref={videoRef} className={s.video} src={videoUrl}
             onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
-            onProgress={() => {
-              const v = videoRef.current
-              if (v?.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1))
-            }}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            playsInline
+            onProgress={() => { const v = videoRef.current; if (v?.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)) }}
+            onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} playsInline
           />
-          <canvas
-            ref={canvasRef}
-            className={s.canvas}
-            style={canvasStyle}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
+          <canvas ref={canvasRef} className={s.canvas} style={canvasStyle}
+            onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           />
         </div>
 
         {/* Controls */}
         <div className={s.controls}>
-          <button className={s.ctrlBtn} onClick={togglePlay}>
-            {isPlaying ? 'PAUSE' : 'PLAY'}
-          </button>
+          <button className={s.ctrlBtn} onClick={togglePlay}>{isPlaying ? 'PAUSE' : 'PLAY'}</button>
           <button className={s.ctrlBtn} onClick={stop}>STOP</button>
           <span className={s.ctrlSep} />
-          <button className={s.ctrlBtn} onClick={() => stepFrame(-1)} title="← frame">‹</button>
-          <button className={s.ctrlBtn} onClick={() => stepFrame(1)} title="→ frame">›</button>
+          <button className={s.ctrlBtn} onClick={() => stepFrame(-1)}>‹</button>
+          <button className={s.ctrlBtn} onClick={() => stepFrame(1)}>›</button>
           <span className={s.ctrlSep} />
           <button className={s.ctrlBtn} onClick={() => changeRate(Math.max(0.25, +(playbackRate - 0.25).toFixed(2)))}>–</button>
-          <span className={s.timecode} style={{ minWidth: 36, textAlign: 'center' }}>{playbackRate}×</span>
+          <span className={s.timecode} style={{ minWidth: 32, textAlign: 'center' }}>{playbackRate}×</span>
           <button className={s.ctrlBtn} onClick={() => changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))}>+</button>
           <span className={s.ctrlSep} />
-          <button className={s.ctrlBtn} onClick={toggleMute} style={{ minWidth: 24 }}>{muted ? '🔇' : '🔊'}</button>
-          <input
-            type="range" min={0} max={1} step={0.05}
-            value={muted ? 0 : volume}
+          <button className={s.ctrlBtn} onClick={toggleMute}>{muted ? '▣' : '▷'}</button>
+          <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume}
             onChange={e => changeVolume(parseFloat(e.target.value))}
-            style={{ width: 56, accentColor: 'var(--black)', cursor: 'pointer' }}
-          />
+            style={{ width: 52, accentColor: 'var(--black)', cursor: 'pointer' }} />
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          <span className={s.ctrlSep} />
           {pendingTs === null && (
-            <>
-              <button
-                className={`${s.ctrlBtn}${drawMode ? ` ${s['ctrlBtn--active']}` : ''}`}
-                onClick={() => setDrawMode(p => !p)}
-              >
-                {drawMode ? '● DRAW' : 'DRAW'}
-              </button>
-              {drawMode && (
-                <>
-                  {/* Color swatches */}
-                  {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setDrawColor(c)}
-                      style={{
-                        width: 14, height: 14, background: c,
-                        border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)',
-                        cursor: 'pointer', flexShrink: 0,
-                      }}
-                    />
-                  ))}
-                  <span className={s.ctrlSep} />
-                  {/* Stroke width */}
-                  {[{ w: 1.5, label: '—' }, { w: 4, label: '━' }].map(({ w, label }) => (
-                    <button key={w} className={`${s.ctrlBtn}${drawWidth === w ? ` ${s['ctrlBtn--active']}` : ''}`}
-                      onClick={() => setDrawWidth(w)} style={{ fontSize: 14, lineHeight: 1 }}>
-                      {label}
-                    </button>
-                  ))}
-                  <span className={s.ctrlSep} />
-                  <button className={s.ctrlBtn} onClick={undoStroke} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>⌘Z</button>
-                  <button className={s.ctrlBtn} onClick={clearStrokes} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>CLEAR</button>
-                </>
-              )}
-              <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>
-                + ANNOTATE
-              </button>
-            </>
-          )}
-          {pendingTs !== null && (
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gray-50)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
-              FRAME LOCKED {drawMode ? '· DRAWING' : '· CLICK DRAW TO MARK'}
-            </span>
+            <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
           )}
         </div>
 
@@ -443,9 +282,7 @@ export default function VideoAnnotator({
           <div className={s.timelineBuffered} style={{ width: duration ? `${(buffered / duration) * 100}%` : '0%' }} />
           <div className={s.timelinePlayhead} style={{ left: duration ? `${(currentTime / duration) * 100}%` : '0%' }} />
           {annotations.map(a => (
-            <div
-              key={a.id}
-              className={`${s.timelineMark}${a.id === activeId ? ` ${s.timelineMarkActive}` : ''}`}
+            <div key={a.id} className={`${s.timelineMark}${a.id === activeId ? ` ${s.timelineMarkActive}` : ''}`}
               style={{ left: duration ? `${(a.timestamp / duration) * 100}%` : '0%' }}
               onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
               title={`${formatShort(a.timestamp)} — ${a.author}`}
@@ -456,41 +293,45 @@ export default function VideoAnnotator({
         {/* Annotation form */}
         {pendingTs !== null && (
           <div className={s.form}>
-            <div className={s.formRow}>
-              <div className={s.formFrame}>
-                <span className="lbl">FRAME</span>
-                <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
-              </div>
-              {drawnPaths.length > 0 && (
-                <span style={{ fontSize: 10, color: 'var(--accent)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
-                  {drawnPaths.length} STROKE{drawnPaths.length > 1 ? 'S' : ''}
-                </span>
+            {/* Frame + draw toolbar */}
+            <div className={s.formToolbar}>
+              <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
+              <span className={s.ctrlSep} style={{ margin: '0 8px' }} />
+              <button
+                className={`${s.ctrlBtn}${drawActive ? ` ${s['ctrlBtn--active']}` : ''}`}
+                style={{ fontSize: 11 }}
+                onClick={() => setDrawActive(p => !p)}
+              >
+                {drawActive ? '● DRAW' : 'DRAW'}
+              </button>
+              {drawActive && (
+                <>
+                  {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
+                    <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
+                  ))}
+                  <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
+                  {[{ w: 1.5, l: '—' }, { w: 4, l: '━' }].map(({ w, l }) => (
+                    <button key={w} className={`${s.ctrlBtn}${drawWidth === w ? ` ${s['ctrlBtn--active']}` : ''}`} onClick={() => setDrawWidth(w)} style={{ fontSize: 13 }}>{l}</button>
+                  ))}
+                  <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
+                  <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>↩</button>
+                  <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>✕</button>
+                  {drawnPaths.length > 0 && <span className="lbl" style={{ color: 'var(--accent)', marginLeft: 4 }}>{drawnPaths.length}</span>}
+                </>
               )}
             </div>
             {isClient && (
-              <input
-                className={s.formNameInput}
-                placeholder="YOUR NAME"
-                value={authorName}
-                onChange={e => setAuthorName(e.target.value)}
-              />
+              <input className={s.formNameInput} placeholder="YOUR NAME" value={authorName} onChange={e => setAuthorName(e.target.value)} />
             )}
-            <textarea
-              className={s.formTextarea}
-              placeholder="COMMENT"
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              autoFocus={!isClient}
+            <textarea className={s.formTextarea} placeholder="COMMENT" value={commentText}
+              onChange={e => setCommentText(e.target.value)} autoFocus={!isClient}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitAnnotation() }}
             />
             <div className={s.formActions}>
               <button className="btn btn--ghost" onClick={cancelAnnotation}>CANCEL</button>
-              <button
-                className="btn btn--primary"
-                onClick={submitAnnotation}
+              <button className="btn btn--primary" onClick={submitAnnotation}
                 disabled={!commentText.trim() || submitting || (isClient && !authorName.trim())}
-                style={{ opacity: (!commentText.trim() || (isClient && !authorName.trim())) ? .4 : 1 }}
-              >
+                style={{ opacity: (!commentText.trim() || (isClient && !authorName.trim())) ? .4 : 1 }}>
                 {submitting ? 'SAVING…' : 'SAVE  ⌘↵'}
               </button>
             </div>
@@ -500,7 +341,7 @@ export default function VideoAnnotator({
         {/* Key hints */}
         {!isClient && pendingTs === null && (
           <div className={s.keyHints}>
-            {[['SPACE', 'PLAY/PAUSE'], ['← →', 'FRAME'], [', .', 'SPEED'], ['M', 'MUTE'], ['A', 'ANNOTATE'], ['D', 'DRAW'], ['ESC', 'CANCEL']].map(([k, hint]) => (
+            {[['SPACE', 'PLAY'], ['← →', 'FRAME'], [', .', 'SPEED'], ['M', 'MUTE'], ['A', 'ANNOTATE'], ['ESC', 'CANCEL']].map(([k, hint]) => (
               <div key={k} className={s.keyHint}>
                 <span className={s.keyHintKey}>{k}</span>
                 <span className="lbl-xs">{hint}</span>
@@ -518,51 +359,52 @@ export default function VideoAnnotator({
         </div>
 
         <div className={s.listScroll}>
-          {annotations.length === 0 && (
-            <div className={s.empty}>NO ANNOTATIONS YET</div>
-          )}
+          {annotations.length === 0 && <div className={s.empty}>NO ANNOTATIONS YET</div>}
           {annotations.map(a => (
-            <div
-              key={a.id}
-              className={`${s.annotItem}${a.id === activeId ? ` ${s.annotItemActive}` : ''}`}
-              onClick={() => selectAnnotation(a)}
-            >
+            <div key={a.id} className={`${s.annotItem}${a.id === activeId ? ` ${s.annotItemActive}` : ''}`} onClick={() => selectAnnotation(a)}>
               <div className={s.annotHead}>
                 <span className={s.annotTs}>{formatShort(a.timestamp)}</span>
-                <span className={`role-badge${a.role === 'CLIENT' ? ' role-badge--client' : ''}`}>
-                  {a.role === 'CLIENT' ? 'CLIENT' : 'DIRECTOR'}
-                </span>
+                <span className={`role-badge${a.role === 'CLIENT' ? ' role-badge--client' : ''}`}>{a.role === 'CLIENT' ? 'CLIENT' : 'DIRECTOR'}</span>
                 {a.drawing && <span className={s.annotDrawn}>✎</span>}
+                {a.resolved && <span className={s.resolvedBadge}>✓</span>}
               </div>
               <div className={s.annotAuthor}>{a.author}</div>
-              <div className={s.annotComment}>{a.comment}</div>
-              {!isClient && !a.resolved && (
-                <button
-                  className="btn btn--ghost"
-                  style={{ fontSize: 9, marginTop: 8 }}
-                  onClick={e => { e.stopPropagation(); resolveAnnotation(a.id) }}
-                >
-                  RESOLVE
-                </button>
+
+              {editId === a.id ? (
+                <div onClick={e => e.stopPropagation()}>
+                  <textarea className={s.formTextarea} value={editText} onChange={e => setEditText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit(a.id); if (e.key === 'Escape') setEditId(null) }}
+                    autoFocus style={{ marginTop: 6 }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <button className="btn btn--ghost" style={{ fontSize: 9 }} onClick={() => setEditId(null)}>CANCEL</button>
+                    <button className="btn btn--primary" style={{ fontSize: 9 }} onClick={() => saveEdit(a.id)}>SAVE</button>
+                  </div>
+                </div>
+              ) : (
+                <div className={s.annotComment}>{a.comment}</div>
               )}
-              {a.resolved && <span className={s.resolvedBadge}>RESOLVED</span>}
-              <div className={s.annotDate}>
-                {new Date(a.createdAt).toLocaleDateString('de-CH')}
-              </div>
+
+              {!isClient && editId !== a.id && (
+                <div className={s.annotActions} onClick={e => e.stopPropagation()}>
+                  {!a.resolved && <button className={s.annotAction} onClick={() => resolveAnnotation(a.id)}>RESOLVE</button>}
+                  <button className={s.annotAction} onClick={() => startEdit(a)}>EDIT</button>
+                  <button className={s.annotAction} style={{ color: 'var(--accent)' }} onClick={() => deleteAnnotation(a.id)}>DELETE</button>
+                </div>
+              )}
+
+              <div className={s.annotDate}>{new Date(a.createdAt).toLocaleDateString('de-CH')}</div>
             </div>
           ))}
         </div>
 
-        {/* Share panel (admin only) */}
         {!isClient && (
           <div className={s.shareRow}>
             <span className="lbl">CLIENT LINK</span>
             {shareUrl ? (
               <>
                 <span className={s.shareLink}>{shareUrl}</span>
-                <button className="btn btn--ghost" style={{ fontSize: 10 }} onClick={copyShare}>
-                  {copyLabel}
-                </button>
+                <button className="btn btn--ghost" style={{ fontSize: 10 }} onClick={copyShare}>{copyLabel}</button>
               </>
             ) : (
               <button className="btn" onClick={generateShare}>GENERATE LINK</button>
