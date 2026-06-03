@@ -4,6 +4,53 @@
   background:  var(--white);
 }
 
+/* ── Zoom bar ── */
+.zoomBar {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  padding:     3px 10px;
+  background:  var(--gray-00);
+  border-top:  1px solid var(--gray-10);
+}
+
+.zoomBtn {
+  width:       18px;
+  height:      18px;
+  font-size:   14px;
+  line-height: 1;
+  background:  var(--gray-10);
+  border:      none;
+  cursor:      pointer;
+  color:       var(--black);
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.zoomBtn:hover { background: var(--gray-30); }
+
+.zoomLabel {
+  font-family: var(--font-mono);
+  font-size:   9px;
+  color:       var(--black);
+  min-width:   28px;
+  text-align:  center;
+  cursor:      pointer;
+  letter-spacing: .04em;
+}
+
+.zoomLabel:hover { color: var(--accent); }
+
+.zoomHint {
+  font-size:   9px;
+  color:       var(--gray-30);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+
 /* ── Ruler ── */
 .ruler {
   position:      relative;
