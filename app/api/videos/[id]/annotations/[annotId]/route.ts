@@ -11,6 +11,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     data: {
       ...(body.resolved !== undefined && { resolved: Boolean(body.resolved) }),
       ...(body.comment && { comment: body.comment }),
+      ...(body.timestamp !== undefined && { timestamp: parseFloat(body.timestamp) }),
+      ...(body.endTimestamp !== undefined && { endTimestamp: body.endTimestamp !== null ? parseFloat(body.endTimestamp) : null }),
     },
   })
   return NextResponse.json({ ...annotation, createdAt: annotation.createdAt.toISOString() })

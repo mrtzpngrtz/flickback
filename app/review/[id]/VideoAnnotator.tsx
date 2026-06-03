@@ -59,6 +59,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [editStart, setEditStart] = useState<number>(0)
+  const [editEnd, setEditEnd] = useState<number | null>(null)
 
   // New annotation form
   const [pendingTs, setPendingTs] = useState<number | null>(null)
@@ -213,12 +215,24 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     if (activeId === id) setActiveId(null)
   }
 
-  const startEdit = (a: AnnotationData) => { setEditId(a.id); setEditText(a.comment) }
+  const startEdit = (a: AnnotationData) => {
+    setEditId(a.id); setEditText(a.comment)
+    setEditStart(a.timestamp); setEditEnd(a.endTimestamp ?? null)
+    const v = videoRef.current; if (v) { v.pause(); v.currentTime = a.timestamp }
+  }
 
   const saveEdit = async (id: string) => {
     if (!editText.trim()) return
-    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ comment: editText }) })
-    if (res.ok) { setAnnotations(p => p.map(a => a.id === id ? { ...a, comment: editText } : a)); setEditId(null) }
+    const body: Record<string, unknown> = {
+      comment: editText,
+      timestamp: editStart,
+      endTimestamp: editEnd !== null && editEnd > editStart ? editEnd : null,
+    }
+    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (res.ok) {
+      setAnnotations(p => p.map(a => a.id === id ? { ...a, comment: editText, timestamp: editStart, endTimestamp: editEnd && editEnd > editStart ? editEnd : null } : a).sort((a, b) => a.timestamp - b.timestamp))
+      setEditId(null)
+    }
   }
 
   const generateShare = async () => {
@@ -404,10 +418,31 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               <div className={s.annotAuthor}>{a.author}</div>
 
               {editId === a.id ? (
-                <div onClick={e => e.stopPropagation()}>
+                <div onClick={e => e.stopPropagation()} style={{ marginTop: 8 }}>
+                  {/* Timestamp range editor */}
+                  <div className={s.tsEditor}>
+                    <div className={s.tsField}>
+                      <span className="lbl" style={{ marginBottom: 4, display: 'block' }}>START</span>
+                      <span className={s.timecode}>{formatTimecode(editStart)}</span>
+                      <button className={s.tsSetBtn} onClick={() => { const v = videoRef.current; if (v) setEditStart(v.currentTime) }}>SET</button>
+                    </div>
+                    <span className={s.timecodeAlt} style={{ alignSelf: 'flex-end', paddingBottom: 4 }}>→</span>
+                    <div className={s.tsField}>
+                      <span className="lbl" style={{ marginBottom: 4, display: 'block' }}>END</span>
+                      {editEnd !== null ? (
+                        <>
+                          <span className={s.timecode}>{formatTimecode(editEnd)}</span>
+                          <button className={s.tsSetBtn} onClick={() => { const v = videoRef.current; if (v) setEditEnd(v.currentTime) }}>SET</button>
+                          <button className={s.tsSetBtn} style={{ color: 'var(--accent)' }} onClick={() => setEditEnd(null)}>✕</button>
+                        </>
+                      ) : (
+                        <button className={s.tsSetBtn} onClick={() => { const v = videoRef.current; if (v) setEditEnd(v.currentTime) }}>+ SET END</button>
+                      )}
+                    </div>
+                  </div>
                   <textarea className={s.formTextarea} value={editText} onChange={e => setEditText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEdit(a.id); if (e.key === 'Escape') setEditId(null) }}
-                    autoFocus style={{ marginTop: 6 }}
+                    style={{ marginTop: 8 }}
                   />
                   <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                     <button className="btn btn--ghost" style={{ fontSize: 9 }} onClick={() => setEditId(null)}>CANCEL</button>
