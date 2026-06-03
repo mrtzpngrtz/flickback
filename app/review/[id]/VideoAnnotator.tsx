@@ -349,11 +349,56 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             )
           })}
 
-          {/* Pending marker preview */}
-          {pendingMarker && (
-            <div className={`${s.marker} ${s.markerPending}`} style={{ left: `${pendingMarker.x * 100}%`, top: `${pendingMarker.y * 100}%` }}>
-              <span className={s.markerNum}>+</span>
+          {/* Pending marker — inline editor */}
+          {pendingTs !== null && pendingMarker && (
+            <div
+              className={s.inlineEditor}
+              style={{ left: `${pendingMarker.x * 100}%`, top: `${pendingMarker.y * 100}%` }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={`${s.inlineEditorInner}${pendingMarker.x > 0.55 ? ` ${s.inlineEditorLeft}` : ''}`}>
+                <div className={s.markerPin} style={{ pointerEvents: 'none' }}>
+                  <span className={s.markerNum} style={{ background: 'var(--accent)' }}>+</span>
+                </div>
+                <div className={s.inlineForm}>
+                  {isClient && (
+                    <input
+                      className={s.inlineInput}
+                      placeholder="YOUR NAME"
+                      value={authorName}
+                      onChange={e => setAuthorName(e.target.value)}
+                    />
+                  )}
+                  <textarea
+                    className={s.inlineTextarea}
+                    placeholder="Add comment…"
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    autoFocus
+                    rows={3}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitAnnotation() }
+                      if (e.key === 'Escape') cancelAnnotation()
+                    }}
+                  />
+                  <div className={s.inlineActions}>
+                    <button className={s.inlineCancelBtn} onClick={cancelAnnotation}>✕</button>
+                    <button
+                      className={s.inlineSaveBtn}
+                      onClick={submitAnnotation}
+                      disabled={!commentText.trim() || submitting || (isClient && !authorName.trim())}
+                    >
+                      {submitting ? '…' : '↵'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Pending marker — no position yet */}
+          {pendingTs !== null && !pendingMarker && (
+            <div className={s.videoClickHint}>CLICK TO PLACE MARKER</div>
           )}
         </div>
 
@@ -397,10 +442,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           }}
         />
 
-        {/* Annotation form */}
+        {/* Annotation toolbar — draw + range when form is open */}
         {pendingTs !== null && (
           <div className={s.form}>
-            {/* Frame + draw toolbar */}
             <div className={s.formToolbar}>
               <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
               {pendingEnd ? (
@@ -412,11 +456,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               ) : (
                 <button className={s.ctrlBtn} style={{ fontSize: 10, marginLeft: 4 }}
                   onClick={() => { const v = videoRef.current; if (v) setPendingEnd(v.currentTime) }}
-                  title="Mark current position as end of range"
                 >+ END</button>
               )}
-
-              {/* draw tools — only when active */}
               {drawActive && (
                 <div className={s.drawTools}>
                   {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
@@ -429,29 +470,10 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                   <span className={s.ctrlSep} style={{ margin: '0 4px' }} />
                   <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>↩</button>
                   <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? 0.3 : 1 }}>✕</button>
-                  {drawnPaths.length > 0 && <span className="lbl" style={{ color: 'var(--accent)' }}>{drawnPaths.length}</span>}
                 </div>
               )}
-
-              {/* draw toggle — pushed to the right */}
-              <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>
-                ✏ DRAW
-              </button>
-            </div>
-            {isClient && (
-              <input className={s.formNameInput} placeholder="YOUR NAME" value={authorName} onChange={e => setAuthorName(e.target.value)} />
-            )}
-            <textarea className={s.formTextarea} placeholder="COMMENT" value={commentText}
-              onChange={e => setCommentText(e.target.value)} autoFocus={!isClient}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitAnnotation() }}
-            />
-            <div className={s.formActions}>
-              <button className="btn btn--ghost" onClick={cancelAnnotation}>CANCEL</button>
-              <button className="btn btn--primary" onClick={submitAnnotation}
-                disabled={!commentText.trim() || submitting || (isClient && !authorName.trim())}
-                style={{ opacity: (!commentText.trim() || (isClient && !authorName.trim())) ? .4 : 1 }}>
-                {submitting ? 'SAVING…' : 'SAVE  ⌘↵'}
-              </button>
+              <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>✏ DRAW</button>
+              <button className="btn btn--ghost" style={{ marginLeft: 8, fontSize: 10 }} onClick={cancelAnnotation}>CANCEL</button>
             </div>
           </div>
         )}
