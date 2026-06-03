@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
-interface Params { params: { id: string } }
+interface Params { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const { id } = await params
   const annotations = await prisma.annotation.findMany({
-    where: { videoId: params.id },
+    where: { videoId: id },
     orderBy: { timestamp: 'asc' },
   })
   return NextResponse.json(annotations)
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
+  const { id } = await params
   const body = await req.json()
   const { timestamp, drawing, comment, author, role } = body
 
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const annotation = await prisma.annotation.create({
     data: {
-      videoId: params.id,
+      videoId: id,
       timestamp: parseFloat(timestamp),
       drawing: drawing ?? null,
       comment,

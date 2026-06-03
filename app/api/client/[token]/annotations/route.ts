@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
-interface Params { params: { token: string } }
+interface Params { params: Promise<{ token: string }> }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const share = await prisma.shareToken.findUnique({ where: { token: params.token } })
+  const { token } = await params
+  const share = await prisma.shareToken.findUnique({ where: { token } })
   if (!share) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
   if (share.expiresAt && share.expiresAt < new Date()) {
     return NextResponse.json({ error: 'Link expired' }, { status: 403 })

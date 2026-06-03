@@ -6,11 +6,12 @@ import VideoAnnotator from '@/app/review/[id]/VideoAnnotator'
 
 export const revalidate = 0
 
-interface Props { params: { token: string } }
+interface Props { params: Promise<{ token: string }> }
 
 export default async function ClientPage({ params }: Props) {
+  const { token } = await params
   const share = await prisma.shareToken.findUnique({
-    where: { token: params.token },
+    where: { token },
     include: {
       video: {
         include: { annotations: { orderBy: { timestamp: 'asc' } } },
@@ -71,7 +72,7 @@ export default async function ClientPage({ params }: Props) {
             createdAt: a.createdAt.toISOString(),
           }))}
           isClient
-          shareToken={params.token}
+          shareToken={token}
         />
       </div>
     </>

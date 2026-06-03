@@ -7,11 +7,12 @@ import VideoAnnotator from './VideoAnnotator'
 
 export const revalidate = 0
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 export default async function ReviewPage({ params }: Props) {
+  const { id } = await params
   const video = await prisma.video.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { annotations: { orderBy: { timestamp: 'asc' } } },
   })
   if (!video) notFound()
