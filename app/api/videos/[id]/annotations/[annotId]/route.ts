@@ -13,6 +13,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(body.comment && { comment: body.comment }),
       ...(body.timestamp !== undefined && { timestamp: parseFloat(body.timestamp) }),
       ...(body.endTimestamp !== undefined && { endTimestamp: body.endTimestamp !== null ? parseFloat(body.endTimestamp) : null }),
+      ...(body.markerX !== undefined && { markerX: body.markerX !== null ? parseFloat(body.markerX) : null }),
+      ...(body.markerY !== undefined && { markerY: body.markerY !== null ? parseFloat(body.markerY) : null }),
     },
   })
   return NextResponse.json({ ...annotation, createdAt: annotation.createdAt.toISOString() })

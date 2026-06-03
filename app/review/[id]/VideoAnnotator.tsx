@@ -45,6 +45,7 @@ function formatShort(s: number) {
 export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -83,6 +84,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [drawColor, setDrawColor] = useState('#FF4D00')
   const [drawWidth, setDrawWidth] = useState(2)
   const [pathMeta, setPathMeta] = useState<{ color: string; width: number }[]>([])
+
+  // Marker drag
+  const markerDragRef = useRef<{ annotId: string | 'pending' } | null>(null)
 
   // Share
   const [shareUrl, setShareUrl] = useState('')
@@ -276,8 +280,49 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const canvasStyle = { pointerEvents: (drawActive ? 'all' : 'none') as React.CSSProperties['pointerEvents'], cursor: drawActive ? 'crosshair' : 'default' }
 
+  const wrapperPos = useCallback((clientX: number, clientY: number) => {
+    const rect = wrapperRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    return {
+      x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
+    }
+  }, [])
+
+  // Global marker drag handlers
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!markerDragRef.current) return
+      const pos = wrapperPos(e.clientX, e.clientY)
+      if (!pos) return
+      const { annotId } = markerDragRef.current
+      if (annotId === 'pending') {
+        setPendingMarker(pos)
+      } else {
+        setAnnotations(prev => prev.map(a => a.id === annotId ? { ...a, markerX: pos.x, markerY: pos.y } : a))
+      }
+    }
+    const onUp = async (e: MouseEvent) => {
+      if (!markerDragRef.current) return
+      const { annotId } = markerDragRef.current
+      markerDragRef.current = null
+      if (annotId === 'pending') return
+      const pos = wrapperPos(e.clientX, e.clientY)
+      if (!pos) return
+      await fetch(`/api/videos/${videoId}/annotations/${annotId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markerX: pos.x, markerY: pos.y }),
+      })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [wrapperPos, videoId])
+
   const onVideoClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (drawActive) return
+    if (markerDragRef.current) return  // ignore clicks that end a drag
     const rect = e.currentTarget.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
@@ -300,6 +345,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       {/* ── Video column ── */}
       <div className={s.videoCol}>
         <div
+          ref={wrapperRef}
           className={s.videoWrapper}
           style={{ cursor: drawActive ? 'crosshair' : pendingTs !== null ? 'crosshair' : 'default' }}
           onClick={onVideoClick}
@@ -335,8 +381,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               <div
                 key={a.id}
                 className={`${s.marker}${isActive ? ` ${s.markerActive}` : ''}`}
-                style={{ left: `${a.markerX! * 100}%`, top: `${a.markerY! * 100}%` }}
-                onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
+                style={{ left: `${a.markerX! * 100}%`, top: `${a.markerY! * 100}%`, cursor: 'grab' }}
+                onMouseDown={e => { e.stopPropagation(); markerDragRef.current = { annotId: a.id } }}
+                onClick={e => { e.stopPropagation(); if (!markerDragRef.current) selectAnnotation(a) }}
               >
                 <div className={s.markerPin}>
                   <span className={s.markerNum}>{i + 1}</span>
@@ -357,7 +404,11 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               onClick={e => e.stopPropagation()}
             >
               <div className={`${s.inlineEditorInner}${pendingMarker.x > 0.55 ? ` ${s.inlineEditorLeft}` : ''}`}>
-                <div className={s.markerPin} style={{ pointerEvents: 'none' }}>
+                <div
+                  className={s.markerPin}
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={e => { e.stopPropagation(); markerDragRef.current = { annotId: 'pending' } }}
+                >
                   <span className={s.markerNum} style={{ background: 'var(--accent)' }}>+</span>
                 </div>
                 <div className={s.inlineForm}>
