@@ -70,6 +70,9 @@ export default function VideoAnnotator({
   const [submitting, setSubmitting] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [copyLabel, setCopyLabel] = useState('COPY LINK')
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [volume, setVolume] = useState(1)
+  const [muted, setMuted] = useState(false)
 
   // Sync canvas dimensions to video display size
   const syncCanvas = useCallback(() => {
@@ -180,6 +183,43 @@ export default function VideoAnnotator({
     if (v.paused) v.play(); else v.pause()
   }, [])
 
+  const stop = useCallback(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.pause()
+    v.currentTime = 0
+  }, [])
+
+  const stepFrame = useCallback((dir: 1 | -1) => {
+    const v = videoRef.current
+    if (!v) return
+    v.pause()
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + dir * (1 / 24)))
+  }, [])
+
+  const changeRate = useCallback((rate: number) => {
+    const v = videoRef.current
+    if (!v) return
+    v.playbackRate = rate
+    setPlaybackRate(rate)
+  }, [])
+
+  const changeVolume = useCallback((val: number) => {
+    const v = videoRef.current
+    if (!v) return
+    v.volume = val
+    v.muted = false
+    setVolume(val)
+    setMuted(false)
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = !v.muted
+    setMuted(v.muted)
+  }, [])
+
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const v = videoRef.current
     if (!v || !duration) return
@@ -282,10 +322,15 @@ export default function VideoAnnotator({
       if (e.key === 'd' || e.key === 'D') setDrawMode(prev => !prev)
       if (e.key === 'Escape') cancelAnnotation()
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undoStroke() }
+      if (e.key === 'ArrowRight') { e.preventDefault(); stepFrame(1) }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); stepFrame(-1) }
+      if (e.key === '.') changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))
+      if (e.key === ',') changeRate(Math.max(0.25, +(playbackRate - 0.25).toFixed(2)))
+      if (e.key === 'm' || e.key === 'M') toggleMute()
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [togglePlay, openAnnotation, cancelAnnotation, undoStroke])
+  }, [togglePlay, openAnnotation, cancelAnnotation, undoStroke, stepFrame, changeRate, playbackRate, toggleMute])
 
   const pointerEvents = drawMode ? 'all' : 'none'
   const canvasStyle = { pointerEvents, cursor: drawMode ? 'crosshair' : 'default' } as React.CSSProperties
@@ -325,6 +370,22 @@ export default function VideoAnnotator({
           <button className={s.ctrlBtn} onClick={togglePlay}>
             {isPlaying ? 'PAUSE' : 'PLAY'}
           </button>
+          <button className={s.ctrlBtn} onClick={stop}>STOP</button>
+          <span className={s.ctrlSep} />
+          <button className={s.ctrlBtn} onClick={() => stepFrame(-1)} title="← frame">‹</button>
+          <button className={s.ctrlBtn} onClick={() => stepFrame(1)} title="→ frame">›</button>
+          <span className={s.ctrlSep} />
+          <button className={s.ctrlBtn} onClick={() => changeRate(Math.max(0.25, +(playbackRate - 0.25).toFixed(2)))}>–</button>
+          <span className={s.timecode} style={{ minWidth: 36, textAlign: 'center' }}>{playbackRate}×</span>
+          <button className={s.ctrlBtn} onClick={() => changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))}>+</button>
+          <span className={s.ctrlSep} />
+          <button className={s.ctrlBtn} onClick={toggleMute} style={{ minWidth: 24 }}>{muted ? '🔇' : '🔊'}</button>
+          <input
+            type="range" min={0} max={1} step={0.05}
+            value={muted ? 0 : volume}
+            onChange={e => changeVolume(parseFloat(e.target.value))}
+            style={{ width: 56, accentColor: 'var(--black)', cursor: 'pointer' }}
+          />
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
@@ -439,7 +500,7 @@ export default function VideoAnnotator({
         {/* Key hints */}
         {!isClient && pendingTs === null && (
           <div className={s.keyHints}>
-            {[['SPACE', 'PLAY/PAUSE'], ['A', 'ANNOTATE'], ['D', 'DRAW'], ['ESC', 'CANCEL']].map(([k, hint]) => (
+            {[['SPACE', 'PLAY/PAUSE'], ['← →', 'FRAME'], [', .', 'SPEED'], ['M', 'MUTE'], ['A', 'ANNOTATE'], ['D', 'DRAW'], ['ESC', 'CANCEL']].map(([k, hint]) => (
               <div key={k} className={s.keyHint}>
                 <span className={s.keyHintKey}>{k}</span>
                 <span className="lbl-xs">{hint}</span>
