@@ -29,6 +29,10 @@ export default function LibraryClient({ videos, projects }: { videos: Video[]; p
     setEditVideo(null)
   }
 
+  const onDeleted = (id: string) => {
+    setVideoList(prev => prev.filter(v => v.id !== id))
+  }
+
   return (
     <>
       {/* Stats */}
@@ -132,6 +136,7 @@ export default function LibraryClient({ videos, projects }: { videos: Video[]; p
           projects={projects}
           onClose={() => setEditVideo(null)}
           onSaved={onUpdated}
+          onDeleted={onDeleted}
         />
       )}
     </>

@@ -9,10 +9,11 @@ type Video = {
 }
 type Project = { id: string; name: string }
 
-export default function VideoInfoModal({ video, projects, onClose, onSaved }: {
+export default function VideoInfoModal({ video, projects, onClose, onSaved, onDeleted }: {
   video: Video; projects: Project[]
-  onClose: () => void; onSaved: (v: any) => void
+  onClose: () => void; onSaved: (v: any) => void; onDeleted?: (id: string) => void
 }) {
+  const [deleting, setDeleting] = useState(false)
   const [form, setForm] = useState({
     title: video.title,
     description: video.description || '',
@@ -21,6 +22,15 @@ export default function VideoInfoModal({ video, projects, onClose, onSaved }: {
     projectId: video.project?.id || '',
   })
   const [saving, setSaving] = useState(false)
+
+  const deleteVideo = async () => {
+    if (!confirm(`Delete "${video.title}"? This cannot be undone.`)) return
+    setDeleting(true)
+    await fetch(`/api/videos/${video.id}`, { method: 'DELETE' })
+    setDeleting(false)
+    onDeleted?.(video.id)
+    onClose()
+  }
 
   const save = async () => {
     setSaving(true)
@@ -81,11 +91,16 @@ export default function VideoInfoModal({ video, projects, onClose, onSaved }: {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 32 }}>
-          <button className="btn btn--ghost" onClick={onClose}>CANCEL</button>
-          <button className="btn btn--primary" onClick={save} disabled={saving}>
-            {saving ? 'SAVING…' : 'SAVE'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32 }}>
+          <button className="btn btn--ghost" style={{ color: 'var(--accent)', fontSize: 10 }} onClick={deleteVideo} disabled={deleting}>
+            {deleting ? 'DELETING…' : 'DELETE VIDEO'}
           </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="btn btn--ghost" onClick={onClose}>CANCEL</button>
+            <button className="btn btn--primary" onClick={save} disabled={saving}>
+              {saving ? 'SAVING…' : 'SAVE'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
