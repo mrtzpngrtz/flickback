@@ -306,24 +306,31 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           />
 
-          {/* Saved annotation markers */}
-          {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => (
-            <div
-              key={a.id}
-              className={`${s.marker}${a.id === activeId ? ` ${s.markerActive}` : ''}`}
-              style={{ left: `${a.markerX! * 100}%`, top: `${a.markerY! * 100}%` }}
-              onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
-              title={`${a.author}: ${a.comment}`}
-            >
-              <span className={s.markerNum}>{i + 1}</span>
-              {a.id === activeId && (
-                <div className={s.markerPopup}>
-                  <div className={s.markerAuthor}>{a.author}</div>
-                  <div className={s.markerComment}>{a.comment}</div>
+          {/* Saved annotation markers — visible at their timestamp only */}
+          {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
+            const isActive = a.id === activeId
+            const inRange = a.endTimestamp != null
+              ? currentTime >= a.timestamp && currentTime <= a.endTimestamp
+              : Math.abs(currentTime - a.timestamp) < 0.5
+            if (!isActive && !inRange) return null
+            const flipLeft = a.markerX! > 0.6
+            return (
+              <div
+                key={a.id}
+                className={`${s.marker}${isActive ? ` ${s.markerActive}` : ''}`}
+                style={{ left: `${a.markerX! * 100}%`, top: `${a.markerY! * 100}%` }}
+                onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
+              >
+                <div className={s.markerPin}>
+                  <span className={s.markerNum}>{i + 1}</span>
+                  <div className={`${s.markerLabel}${flipLeft ? ` ${s.markerLabelLeft}` : ''}`}>
+                    <div className={s.markerAuthor}>{a.author}</div>
+                    <div className={s.markerComment}>{a.comment}</div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )
+          })}
 
           {/* Pending marker preview */}
           {pendingMarker && (
