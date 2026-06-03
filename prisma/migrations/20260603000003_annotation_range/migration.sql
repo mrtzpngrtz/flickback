@@ -1,0 +1,1 @@
+ALTER TABLE "Annotation" ADD COLUMN "endTimestamp" DOUBLE PRECISION;

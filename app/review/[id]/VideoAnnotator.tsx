@@ -8,6 +8,7 @@ interface Point { x: number; y: number }
 export interface AnnotationData {
   id: string
   timestamp: number
+  endTimestamp?: number | null
   drawing?: string | null
   comment: string
   author: string
@@ -61,6 +62,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   // New annotation form
   const [pendingTs, setPendingTs] = useState<number | null>(null)
+  const [pendingEnd, setPendingEnd] = useState<number | null>(null)
   const [commentText, setCommentText] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -169,7 +171,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   }, [])
 
   const cancelAnnotation = useCallback(() => {
-    setPendingTs(null); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
+    setPendingTs(null); setPendingEnd(null); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
   }, [])
 
   const submitAnnotation = async () => {
@@ -181,7 +183,13 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     try {
       const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp: pendingTs, drawing, comment: commentText, author: isClient ? authorName : 'Director', role: isClient ? 'CLIENT' : 'ADMIN' }),
+        body: JSON.stringify({
+          timestamp: pendingTs,
+          endTimestamp: pendingEnd && pendingEnd > pendingTs! ? pendingEnd : undefined,
+          drawing, comment: commentText,
+          author: isClient ? authorName : 'Director',
+          role: isClient ? 'CLIENT' : 'ADMIN',
+        }),
       })
       if (res.ok) { const created = await res.json(); setAnnotations(p => [...p, created].sort((a, b) => a.timestamp - b.timestamp)); cancelAnnotation() }
     } finally { setSubmitting(false) }
@@ -286,7 +294,14 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <div className={s.timelineTrack} />
           <div className={s.timelineBuffered} style={{ width: duration ? `${(buffered / duration) * 100}%` : '0%' }} />
           <div className={s.timelinePlayhead} style={{ left: duration ? `${(currentTime / duration) * 100}%` : '0%' }} />
-          {annotations.map(a => (
+          {annotations.map(a => a.endTimestamp && duration ? (
+            <div key={a.id}
+              className={`${s.timelineRange}${a.id === activeId ? ` ${s.timelineRangeActive}` : ''}`}
+              style={{ left: `${(a.timestamp / duration) * 100}%`, width: `${((a.endTimestamp - a.timestamp) / duration) * 100}%` }}
+              onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
+              title={`${formatShort(a.timestamp)} → ${formatShort(a.endTimestamp)} — ${a.author}`}
+            />
+          ) : (
             <div key={a.id} className={`${s.timelineMark}${a.id === activeId ? ` ${s.timelineMarkActive}` : ''}`}
               style={{ left: duration ? `${(a.timestamp / duration) * 100}%` : '0%' }}
               onClick={e => { e.stopPropagation(); selectAnnotation(a) }}
@@ -301,6 +316,18 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             {/* Frame + draw toolbar */}
             <div className={s.formToolbar}>
               <span className={s.timecode}>{formatTimecode(pendingTs)}</span>
+              {pendingEnd ? (
+                <>
+                  <span className={s.timecodeAlt}> → </span>
+                  <span className={s.timecode}>{formatTimecode(pendingEnd)}</span>
+                  <button className={s.ctrlBtn} style={{ fontSize: 9, opacity: .6 }} onClick={() => setPendingEnd(null)}>✕</button>
+                </>
+              ) : (
+                <button className={s.ctrlBtn} style={{ fontSize: 10, marginLeft: 4 }}
+                  onClick={() => { const v = videoRef.current; if (v) setPendingEnd(v.currentTime) }}
+                  title="Mark current position as end of range"
+                >+ END</button>
+              )}
 
               {/* draw tools — only when active */}
               {drawActive && (
@@ -367,7 +394,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           {annotations.map(a => (
             <div key={a.id} className={`${s.annotItem}${a.id === activeId ? ` ${s.annotItemActive}` : ''}`} onClick={() => selectAnnotation(a)}>
               <div className={s.annotHead}>
-                <span className={s.annotTs}>{formatShort(a.timestamp)}</span>
+                <span className={s.annotTs}>
+                  {formatShort(a.timestamp)}{a.endTimestamp ? ` → ${formatShort(a.endTimestamp)}` : ''}
+                </span>
                 <span className={`role-badge${a.role === 'CLIENT' ? ' role-badge--client' : ''}`}>{a.role === 'CLIENT' ? 'CLIENT' : 'DIRECTOR'}</span>
                 {a.drawing && <span className={s.annotDrawn}>✎</span>}
                 {a.resolved && <span className={s.resolvedBadge}>✓</span>}

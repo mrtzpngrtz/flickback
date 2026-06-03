@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const body = await req.json()
-  const { timestamp, drawing, comment, author } = body
+  const { timestamp, endTimestamp, drawing, comment, author } = body
 
   if (timestamp == null || !comment || !author) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     data: {
       videoId: share.videoId,
       timestamp: parseFloat(timestamp),
+      endTimestamp: endTimestamp != null ? parseFloat(endTimestamp) : null,
       drawing: drawing ?? null,
       comment,
       author,

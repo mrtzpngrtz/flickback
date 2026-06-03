@@ -150,6 +150,23 @@
 
 .timelineMarkActive { background: var(--accent) !important; }
 
+.timelineRange {
+  position:   absolute;
+  top:        6px;
+  bottom:     6px;
+  background: rgba(26,26,26,.15);
+  cursor:     pointer;
+  z-index:    3;
+  min-width:  3px;
+}
+
+.timelineRange:hover { background: rgba(26,26,26,.25); }
+
+.timelineRangeActive {
+  background: rgba(255,77,0,.2) !important;
+  outline:    2px solid var(--accent);
+}
+
 /* ── Annotation form ────────────────────────── */
 .form {
   padding:     var(--sp-16);
