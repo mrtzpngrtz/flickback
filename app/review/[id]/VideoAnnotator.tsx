@@ -129,9 +129,12 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       } catch {}
     }
 
-    drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
-    if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
-  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth])
+    // Only show in-progress strokes when annotation form is open
+    if (pendingTs !== null) {
+      drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
+      if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
+    }
+  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs])
 
   useEffect(() => { redraw() }, [redraw])
 
@@ -186,7 +189,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const selectAnnotation = (a: AnnotationData) => {
     const v = videoRef.current; if (!v) return
-    v.pause(); v.currentTime = a.timestamp; setActiveId(a.id === activeId ? null : a.id); setEditId(null)
+    v.pause(); v.currentTime = a.timestamp
+    setActiveId(prev => { if (prev === a.id) { return null } return a.id })
+    setEditId(null)
   }
 
   const resolveAnnotation = async (id: string) => {
@@ -245,7 +250,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
             onProgress={() => { const v = videoRef.current; if (v?.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)) }}
-            onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} playsInline
+            onPlay={() => { setIsPlaying(true); setActiveId(null) }} onPause={() => setIsPlaying(false)} playsInline
           />
           <canvas ref={canvasRef} className={s.canvas} style={canvasStyle}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
