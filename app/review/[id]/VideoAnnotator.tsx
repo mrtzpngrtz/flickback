@@ -392,7 +392,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             const inRange = a.endTimestamp != null
               ? currentTime >= a.timestamp && currentTime <= a.endTimestamp
               : Math.abs(currentTime - a.timestamp) < 0.5
-            if (!isActive && !inRange) return null
+            if (!inRange) return null
             const flipLeft = a.markerX! > 0.6
             return (
               <div

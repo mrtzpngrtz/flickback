@@ -324,6 +324,8 @@ export default function Timeline({
                 onClick={e => { e.stopPropagation(); if (!dragJustEndedRef.current) onSelectAnnotation(a) }}
               >
                 <div className={s.handleLeft}  data-handle="start" onMouseDown={e => onHandleDown(e, a.id, 'start')} />
+                {/* Middle: move the whole range */}
+                <div className={s.handleMove}  data-handle="move"  onMouseDown={e => onHandleDown(e, a.id, 'move')} />
                 <div className={s.handleRight} data-handle="end"   onMouseDown={e => onHandleDown(e, a.id, 'end')} />
               </div>
             )

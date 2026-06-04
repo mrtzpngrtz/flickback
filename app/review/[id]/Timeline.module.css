@@ -263,7 +263,17 @@
 }
 
 .handleLeft  { left:  -4px; }
-.handleRight { right: -6px; width: 10px; }
+.handleRight { right: -4px; }
+
+.handleMove {
+  position:   absolute;
+  top:        0; bottom: 0;
+  left:       8px; right: 8px;
+  cursor:     grab;
+  z-index:    5;
+}
+
+.handleMove:active { cursor: grabbing; }
 
 .handleLeft::after,
 .handleRight::after {
