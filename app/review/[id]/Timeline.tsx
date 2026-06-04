@@ -71,9 +71,10 @@ export default function Timeline({
   const [panning, setPanning]   = useState(false)
   const panStartRef = useRef<{ x: number; offset: number } | null>(null)
 
-  const dragRef    = useRef<{ annotId: string; handle: 'start' | 'end' | 'move'; grabOffset: number; initEnd: number | null; didMove: boolean } | null>(null)
+  const dragRef         = useRef<{ annotId: string; handle: 'start' | 'end' | 'move'; grabOffset: number; initEnd: number | null; didMove: boolean } | null>(null)
   const [dragState, setDragState] = useState<{ annotId: string; start: number; end: number | null } | null>(null)
-  const savingRef  = useRef(false)
+  const savingRef       = useRef(false)
+  const dragJustEndedRef = useRef(false)
 
   // Derived view window
   const visibleDur = duration / zoom
@@ -179,7 +180,9 @@ export default function Timeline({
       if (panning) { setPanning(false); panStartRef.current = null; return }
       if (scrubbing) { setScrubbing(false); return }
       if (!dragRef.current) return
-      if (!dragState || !dragRef.current.didMove) { dragRef.current = null; return }
+      const didMove = dragRef.current.didMove
+      if (!dragState || !didMove) { dragRef.current = null; return }
+      if (didMove) { dragJustEndedRef.current = true; setTimeout(() => { dragJustEndedRef.current = false }, 150) }
       const { annotId, start, end } = dragState
       dragRef.current = null; setDragState(null)
       if (savingRef.current) return
@@ -314,7 +317,7 @@ export default function Timeline({
               <div key={a.id}
                 className={`${s.stripe}${isActive ? ` ${s.stripeActive}` : ''}`}
                 style={{ left: `${left}%`, width: `${width}%`, top: topPx, height: heightPx }}
-                onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
+                onClick={e => { e.stopPropagation(); if (!dragJustEndedRef.current) onSelectAnnotation(a) }}
               >
                 <div className={s.handleLeft}  data-handle="start" onMouseDown={e => onHandleDown(e, a.id, 'start')} />
                 <div className={s.handleRight} data-handle="end"   onMouseDown={e => onHandleDown(e, a.id, 'end')} />
@@ -331,7 +334,7 @@ export default function Timeline({
                 className={`${s.stripeMark}${isActive ? ` ${s.stripeActive}` : ''}`}
                 data-handle="move"
                 onMouseDown={e => onHandleDown(e, a.id, 'move')}
-                onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
+                onClick={e => { e.stopPropagation(); if (!dragJustEndedRef.current) onSelectAnnotation(a) }}
                 title={`${fmt(a.timestamp)} — ${a.author}`}
               />
               {/* Right extend zone — drag to create end timestamp */}
