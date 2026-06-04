@@ -213,8 +213,10 @@ export default function Timeline({
     const annot = annotations.find(a => a.id === annotId)!
     const clickTime = xToTime(e.clientX)
     const grabOffset = handle === 'move' ? clickTime - annot.timestamp : 0
-    dragRef.current = { annotId, handle, grabOffset, initEnd: annot.endTimestamp ?? null, didMove: false }
-    setDragState({ annotId, start: annot.timestamp, end: annot.endTimestamp ?? null })
+    // For 'end' on a point mark (no endTimestamp), start end at timestamp so drag grows it
+    const initEnd = annot.endTimestamp ?? (handle === 'end' ? annot.timestamp : null)
+    dragRef.current = { annotId, handle, grabOffset, initEnd, didMove: false }
+    setDragState({ annotId, start: annot.timestamp, end: initEnd })
   }
 
   // Lane assignment (recomputed when annotations or drag changes)
@@ -327,7 +329,10 @@ export default function Timeline({
               onMouseDown={e => onHandleDown(e, a.id, 'move')}
               onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
               title={`${fmt(a.timestamp)} — ${a.author}`}
-            />
+            >
+              {/* Right handle on point mark — drag to create end timestamp */}
+              <div className={s.handleRight} data-handle="end" onMouseDown={e => onHandleDown(e, a.id, 'end')} />
+            </div>
           )
         })}
       </div>
