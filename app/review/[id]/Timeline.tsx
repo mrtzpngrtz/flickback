@@ -27,6 +27,25 @@ function fmtFrames(s: number, fps = 24) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}:${String(f).padStart(2, '0')}`
 }
 
+const LANE_H   = 14   // px per lane
+const LANE_PAD = 3    // px padding top/bottom within lane
+
+// Assign each annotation to a non-overlapping swim lane
+function assignLanes(annotations: AnnotationData[]): Map<string, number> {
+  const sorted = [...annotations].sort((a, b) => a.timestamp - b.timestamp)
+  const laneEnds: number[] = []  // end time of last annotation in each lane
+  const map = new Map<string, number>()
+  for (const a of sorted) {
+    const start = a.timestamp
+    const end   = (a.endTimestamp ?? a.timestamp) + 0.001
+    let lane    = laneEnds.findIndex(e => e <= start)
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(0) }
+    laneEnds[lane] = end
+    map.set(a.id, lane)
+  }
+  return map
+}
+
 function adaptiveTicks(visibleDur: number): { major: number; minor: number; showFrames: boolean } {
   if (visibleDur <= 2)   return { major: 1,   minor: 1/24, showFrames: true }
   if (visibleDur <= 10)  return { major: 1,   minor: 0.5,  showFrames: false }
@@ -198,6 +217,15 @@ export default function Timeline({
     setDragState({ annotId, start: annot.timestamp, end: annot.endTimestamp ?? null })
   }
 
+  // Lane assignment (recomputed when annotations or drag changes)
+  const liveAnnotations = annotations.map(a => {
+    const ds = dragState?.annotId === a.id ? dragState : null
+    return ds ? { ...a, timestamp: ds.start, endTimestamp: ds.end } : a
+  })
+  const laneMap  = assignLanes(liveAnnotations)
+  const numLanes = Math.max(1, laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) + 1 : 1)
+  const trackH   = numLanes * LANE_H
+
   // Ticks
   const { major, minor, showFrames } = adaptiveTicks(visibleDur)
   const ticks: { t: number; isMajor: boolean }[] = []
@@ -253,26 +281,37 @@ export default function Timeline({
         <div ref={scrubBarRef} className={s.scrubBar} style={{ left: '0%' }} />
       </div>
 
-      {/* Annotation track */}
-      <div className={s.annotTrack} onMouseDown={e => { if (e.altKey) { e.preventDefault(); setPanning(true); panStartRef.current = { x: e.clientX, offset } } }}>
-        <div ref={annotLineRef} className={s.playhead} style={{ left: '0%' }} />
-        {annotations.map(a => {
-          const ds    = dragState?.annotId === a.id ? dragState : null
-          const start = ds?.start ?? a.timestamp
-          const end   = ds?.end ?? a.endTimestamp ?? null
-          const left  = timeToLeft(start)
-          const isActive = a.id === activeId
+      {/* Annotation track — dynamic height, multi-lane */}
+      <div
+        className={s.annotTrack}
+        style={{ height: trackH }}
+        onMouseDown={e => { if (e.altKey) { e.preventDefault(); setPanning(true); panStartRef.current = { x: e.clientX, offset } } }}
+      >
+        {/* Lane dividers */}
+        {Array.from({ length: numLanes }).map((_, i) => (
+          <div key={i} className={s.laneRow} style={{ top: i * LANE_H, height: LANE_H }} />
+        ))}
 
-          // Skip if fully outside view
+        <div ref={annotLineRef} className={s.playhead} style={{ left: '0%' }} />
+
+        {liveAnnotations.map(a => {
+          const start    = a.timestamp
+          const end      = a.endTimestamp ?? null
+          const left     = timeToLeft(start)
+          const isActive = a.id === activeId
+          const lane     = laneMap.get(a.id) ?? 0
+          const topPx    = lane * LANE_H + LANE_PAD
+          const heightPx = LANE_H - LANE_PAD * 2
+
           const viewEnd = offsetTime + visibleDur
-          if (start > viewEnd || (end ?? start) < offsetTime) return null
+          if (start > viewEnd + 1 || (end ?? start) < offsetTime - 1) return null
 
           if (end !== null) {
-            const width = Math.max(0.3, ((end - start) / visibleDur) * 100)
+            const width = Math.max(0.2, ((end - start) / visibleDur) * 100)
             return (
               <div key={a.id}
-                className={`${s.range}${isActive ? ` ${s.rangeActive}` : ''}`}
-                style={{ left: `${left}%`, width: `${width}%` }}
+                className={`${s.stripe}${isActive ? ` ${s.stripeActive}` : ''}`}
+                style={{ left: `${left}%`, width: `${width}%`, top: topPx, height: heightPx }}
                 onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
               >
                 <div className={s.handleLeft}  data-handle="start" onMouseDown={e => onHandleDown(e, a.id, 'start')} />
@@ -282,8 +321,8 @@ export default function Timeline({
           }
           return (
             <div key={a.id}
-              className={`${s.mark}${isActive ? ` ${s.markActive}` : ''}`}
-              style={{ left: `${left}%` }}
+              className={`${s.stripe} ${s.stripeMark}${isActive ? ` ${s.stripeActive}` : ''}`}
+              style={{ left: `${left}%`, top: topPx, height: heightPx, width: 2 }}
               data-handle="move"
               onMouseDown={e => onHandleDown(e, a.id, 'move')}
               onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}

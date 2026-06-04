@@ -116,11 +116,18 @@
 /* ── Annotation track (bottom) ── */
 .annotTrack {
   position:   relative;
-  height:     36px;
-  overflow:   hidden;
-  background: var(--white);
-  border-top: 1px solid var(--gray-10);
-  border-bottom: 1px solid var(--gray-10);
+  min-height: 14px;
+  overflow:   visible;
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #111;
+}
+
+.laneRow {
+  position:   absolute;
+  left: 0; right: 0;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  pointer-events: none;
 }
 
 /* ── Hover ── */
@@ -145,7 +152,7 @@
   pointer-events: none;
 }
 
-/* ── Playhead line spanning both tracks ── */
+/* ── Playhead line in annotation track ── */
 .playhead {
   position:       absolute;
   top:            0;
@@ -155,38 +162,28 @@
   pointer-events: none;
   z-index:        10;
   transform:      translateX(-0.5px);
-  opacity:        .5;
 }
 
-/* ── Point mark ── */
-.mark {
+/* ── Stripe (point or range) ── */
+.stripe {
   position:   absolute;
-  top:        6px;
-  bottom:     6px;
-  width:      3px;
-  background: var(--black);
+  background: rgba(255,255,255,.7);
   cursor:     ew-resize;
-  z-index:    6;
-  transform:  translateX(-1px);
-}
-
-.mark:hover  { background: var(--gray-50); }
-.markActive  { background: var(--accent) !important; }
-
-/* ── Range ── */
-.range {
-  position:   absolute;
-  top:        6px;
-  bottom:     6px;
-  background: var(--gray-00);
-  border:     1px solid var(--gray-30);
-  cursor:     pointer;
   z-index:    4;
-  min-width:  4px;
+  transition: background .1s;
 }
 
-.range:hover     { border-color: var(--gray-50); }
-.rangeActive     { background: rgba(255,77,0,.1) !important; border-color: var(--accent) !important; }
+.stripe:hover  { background: rgba(255,255,255,1); }
+
+.stripeMark {
+  transform:  translateX(-1px);
+  cursor:     ew-resize;
+}
+
+.stripeActive {
+  background: var(--accent) !important;
+  z-index:    6;
+}
 
 /* ── Drag handles ── */
 .handleLeft,
@@ -204,15 +201,15 @@
 
 .handleLeft::after,
 .handleRight::after {
-  content:  '';
-  position: absolute;
-  top: 25%; bottom: 25%;
-  width:    2px;
-  background: var(--gray-30);
+  content:    '';
+  position:   absolute;
+  top:        0; bottom: 0;
+  width:      2px;
+  background: rgba(255,255,255,.3);
 }
 
-.handleLeft::after  { left:  3px; }
-.handleRight::after { right: 3px; }
+.handleLeft::after  { left:  2px; }
+.handleRight::after { right: 2px; }
 
-.rangeActive .handleLeft::after,
-.rangeActive .handleRight::after { background: var(--accent); }
+.stripeActive .handleLeft::after,
+.stripeActive .handleRight::after { background: rgba(255,77,0,.6); }
