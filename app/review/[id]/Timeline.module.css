@@ -197,10 +197,53 @@
 
 .stripe:hover  { background: rgba(255,255,255,1); }
 
-.stripeMark {
-  transform:  translateX(-1px);
-  cursor:     ew-resize;
+/* ── Point mark container ── */
+.markWrap {
+  position:  absolute;
+  display:   flex;
+  transform: translateX(-1px);
+  z-index:   6;
 }
+
+.stripeMark {
+  width:      10px;        /* grab zone wider than the visible line */
+  height:     100%;
+  cursor:     grab;
+  position:   relative;
+  flex-shrink: 0;
+}
+
+/* Visible 2px white line inside the grab zone */
+.stripeMark::before {
+  content:    '';
+  position:   absolute;
+  top:        0; bottom: 0;
+  left:       4px;
+  width:      2px;
+  background: rgba(255,255,255,.7);
+  pointer-events: none;
+}
+
+.stripeMark.stripeActive::before { background: var(--accent); }
+.stripeMark:hover::before { background: rgba(255,255,255,1); }
+
+.markExtend {
+  width:      10px;
+  height:     100%;
+  cursor:     e-resize;
+  flex-shrink: 0;
+}
+
+.markExtend::before {
+  content:    '';
+  position:   absolute;
+  top:        25%; bottom: 25%;
+  right:      0;
+  width:      2px;
+  background: rgba(255,255,255,.15);
+}
+
+.markExtend:hover::before { background: rgba(255,255,255,.4); }
 
 .stripeActive {
   background: var(--accent) !important;

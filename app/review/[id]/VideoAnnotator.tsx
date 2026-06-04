@@ -525,9 +525,22 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          {pendingTs === null && (
-            <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
-          )}
+          {pendingTs === null
+            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
+            : <>
+                <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>✏ DRAW</button>
+                {drawActive && (
+                  <>
+                    {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
+                      <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
+                    ))}
+                    <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>↩</button>
+                    <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>✕</button>
+                  </>
+                )}
+                <button className="btn btn--ghost" style={{ fontSize: 10 }} onClick={cancelAnnotation}>CANCEL</button>
+              </>
+          }
         </div>
 
         {/* Timeline */}
@@ -547,8 +560,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
         />
 
 
-        {/* Key hints */}
-        {!isClient && pendingTs === null && (
+        {/* Key hints — always visible */}
+        {!isClient && (
           <div className={s.keyHints}>
             {[['SPACE', 'PLAY'], ['← →', 'FRAME'], [', .', 'SPEED'], ['M', 'MUTE'], ['A', 'ANNOTATE'], ['ESC', 'CANCEL']].map(([k, hint]) => (
               <div key={k} className={s.keyHint}>

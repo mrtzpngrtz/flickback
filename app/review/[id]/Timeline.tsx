@@ -323,15 +323,24 @@ export default function Timeline({
           }
           return (
             <div key={a.id}
-              className={`${s.stripe} ${s.stripeMark}${isActive ? ` ${s.stripeActive}` : ''}`}
-              style={{ left: `${left}%`, top: topPx, height: heightPx, width: 2 }}
-              data-handle="move"
-              onMouseDown={e => onHandleDown(e, a.id, 'move')}
-              onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
-              title={`${fmt(a.timestamp)} — ${a.author}`}
+              className={s.markWrap}
+              style={{ left: `${left}%`, top: topPx, height: heightPx }}
             >
-              {/* Right handle on point mark — drag to create end timestamp */}
-              <div className={s.handleRight} data-handle="end" onMouseDown={e => onHandleDown(e, a.id, 'end')} />
+              {/* Move grab zone (left 12px) */}
+              <div
+                className={`${s.stripeMark}${isActive ? ` ${s.stripeActive}` : ''}`}
+                data-handle="move"
+                onMouseDown={e => onHandleDown(e, a.id, 'move')}
+                onClick={e => { e.stopPropagation(); onSelectAnnotation(a) }}
+                title={`${fmt(a.timestamp)} — ${a.author}`}
+              />
+              {/* Right extend zone — drag to create end timestamp */}
+              <div
+                className={s.markExtend}
+                data-handle="end"
+                onMouseDown={e => onHandleDown(e, a.id, 'end')}
+                title="Drag to set end"
+              />
             </div>
           )
         })}
