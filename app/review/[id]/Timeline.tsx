@@ -27,7 +27,7 @@ function fmtFrames(s: number, fps = 24) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}:${String(f).padStart(2, '0')}`
 }
 
-const LANE_H   = 14   // px per lane
+const LANE_H   = 20   // px per lane
 const LANE_PAD = 3    // px padding top/bottom within lane
 
 // Assign each annotation to a non-overlapping swim lane
@@ -73,8 +73,12 @@ export default function Timeline({
 
   const dragRef         = useRef<{ annotId: string; handle: 'start' | 'end' | 'move'; grabOffset: number; initEnd: number | null; didMove: boolean } | null>(null)
   const [dragState, setDragState] = useState<{ annotId: string; start: number; end: number | null } | null>(null)
+  const dragStateRef    = useRef(dragState)   // always-current ref, avoids effect churn
   const savingRef       = useRef(false)
   const dragJustEndedRef = useRef(false)
+
+  // Keep dragStateRef in sync
+  useEffect(() => { dragStateRef.current = dragState }, [dragState])
 
   // Derived view window
   const visibleDur = duration / zoom
@@ -165,10 +169,10 @@ export default function Timeline({
       const annot = annotations.find(a => a.id === d.annotId)
       if (!annot) return
       if (d.handle === 'start') {
-        const end = dragState?.end ?? annot.endTimestamp ?? null
+        const end = dragStateRef.current?.end ?? annot.endTimestamp ?? null
         setDragState({ annotId: d.annotId, start: end !== null ? Math.min(t, end - 1/24) : t, end })
       } else if (d.handle === 'end') {
-        const start = dragState?.start ?? annot.timestamp
+        const start = dragStateRef.current?.start ?? annot.timestamp
         setDragState({ annotId: d.annotId, start, end: Math.max(t, start + 1/24) })
       } else {
         const dur = (annot.endTimestamp ?? annot.timestamp) - annot.timestamp
@@ -181,9 +185,9 @@ export default function Timeline({
       if (scrubbing) { setScrubbing(false); return }
       if (!dragRef.current) return
       const didMove = dragRef.current.didMove
-      if (!dragState || !didMove) { dragRef.current = null; return }
+      if (!dragStateRef.current || !didMove) { dragRef.current = null; return }
       if (didMove) { dragJustEndedRef.current = true; setTimeout(() => { dragJustEndedRef.current = false }, 150) }
-      const { annotId, start, end } = dragState
+      const { annotId, start, end } = dragStateRef.current
       dragRef.current = null; setDragState(null)
       if (savingRef.current) return
       savingRef.current = true
@@ -197,7 +201,7 @@ export default function Timeline({
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-  }, [scrubbing, panning, xToTime, onSeek, dragState, annotations, duration, videoId, onAnnotationRangeChange, clampOffset, zoom])
+  }, [scrubbing, panning, xToTime, onSeek, annotations, duration, videoId, onAnnotationRangeChange, clampOffset, zoom])
 
   const onTrackDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-handle]')) return
