@@ -535,6 +535,15 @@
   letter-spacing: .04em;
 }
 
+.annotType {
+  font-size:  11px;
+  color:      var(--gray-30);
+  line-height: 1;
+  cursor:     default;
+}
+
+.annotItemActive .annotType { color: var(--gray-50); }
+
 .annotAuthor {
   font-size:  var(--t-small);
   font-weight: 500;

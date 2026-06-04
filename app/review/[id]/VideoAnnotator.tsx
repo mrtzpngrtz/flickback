@@ -43,9 +43,10 @@ function formatShort(s: number) {
 }
 
 export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const videoRef   = useRef<HTMLVideoElement>(null)
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const noteRef    = useRef<HTMLTextAreaElement>(null)
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -143,11 +144,17 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
     const active = annotations.find(a => a.id === activeId)
     if (active?.drawing) {
-      try {
-        const parsed = JSON.parse(active.drawing)
-        if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
-        else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
-      } catch {}
+      const t = currentTimeRef.current
+      const inRange = active.endTimestamp != null
+        ? t >= active.timestamp && t <= active.endTimestamp
+        : Math.abs(t - active.timestamp) < 0.5
+      if (inRange) {
+        try {
+          const parsed = JSON.parse(active.drawing)
+          if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
+          else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
+        } catch {}
+      }
     }
 
     // Only show in-progress strokes when annotation form is open
@@ -265,6 +272,13 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   }
 
   const copyShare = () => { navigator.clipboard.writeText(shareUrl); setCopyLabel('COPIED'); setTimeout(() => setCopyLabel('COPY LINK'), 2000) }
+
+  const toggleDraw = useCallback(() => {
+    setDrawActive(prev => {
+      if (prev) setTimeout(() => noteRef.current?.focus(), 50)
+      return !prev
+    })
+  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -458,11 +472,12 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                     />
                   )}
                   <textarea
+                    ref={noteRef}
                     className={s.inlineTextarea}
-                    placeholder="Add comment…"
+                    placeholder="Add note…"
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
-                    autoFocus
+                    autoFocus={!drawActive}
                     rows={3}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submitAnnotation() }
@@ -474,7 +489,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                     <button
                       className={s.inlineDrawBtn}
                       style={{ background: drawActive ? 'var(--black)' : undefined, color: drawActive ? 'var(--white)' : undefined }}
-                      onClick={() => setDrawActive(p => !p)}
+                      onClick={toggleDraw}
                       title="Draw on frame"
                     >✏</button>
                     {drawActive && (
@@ -528,7 +543,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           {pendingTs === null
             ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
             : <>
-                <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={() => setDrawActive(p => !p)}>✏ DRAW</button>
+                <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={toggleDraw}>✏ DRAW</button>
                 {drawActive && (
                   <>
                     {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
@@ -589,7 +604,9 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                   {formatShort(a.timestamp)}{a.endTimestamp ? ` → ${formatShort(a.endTimestamp)}` : ''}
                 </span>
                 <span className={`role-badge${a.role === 'CLIENT' ? ' role-badge--client' : ''}`}>{a.role === 'CLIENT' ? 'CLIENT' : 'DIRECTOR'}</span>
-                {a.drawing && <span className={s.annotDrawn}>✎</span>}
+                <span className={s.annotType} title={a.drawing ? 'Drawing + note' : 'Note'}>
+                  {a.drawing ? '✏' : '✎'}
+                </span>
                 {a.resolved && <span className={s.resolvedBadge}>✓</span>}
               </div>
               <div className={s.annotAuthor}>{a.author}</div>
