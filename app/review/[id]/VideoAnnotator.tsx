@@ -26,6 +26,7 @@ interface Props {
   videoId: string
   initialAnnotations: AnnotationData[]
   isClient?: boolean
+  clientName?: string
   shareToken?: string
   videoTitle?: string
   videoFilename?: string
@@ -50,7 +51,7 @@ function formatShort(s: number) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken, videoTitle, videoFilename, videoDescription, versionNote, tags, videoDuration, videoSize }: Props) {
+export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, clientName, shareToken, videoTitle, videoFilename, videoDescription, versionNote, tags, videoDuration, videoSize }: Props) {
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -82,7 +83,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [pendingEnd, setPendingEnd] = useState<number | null>(null)
   const [pendingMarker, setPendingMarker] = useState<{ x: number; y: number } | null>(null)
   const [commentText, setCommentText] = useState('')
-  const [authorName, setAuthorName] = useState('')
+  const [authorName, setAuthorName] = useState(clientName ?? '')
   const [submitting, setSubmitting] = useState(false)
 
   // Drawing (only active when annotation form is open)
@@ -236,7 +237,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const submitAnnotation = async () => {
     if (!commentText.trim() || pendingTs === null) return
-    if (isClient && !authorName.trim()) return
+    const effectiveAuthor = clientName ?? authorName
+    if (isClient && !effectiveAuthor.trim()) return
     setSubmitting(true)
     const drawing = drawnPaths.length > 0 ? JSON.stringify({ paths: drawnPaths, meta: pathMeta }) : undefined
     const endpoint = isClient ? `/api/client/${shareToken}/annotations` : `/api/videos/${videoId}/annotations`
@@ -249,7 +251,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           markerX: pendingMarker?.x ?? undefined,
           markerY: pendingMarker?.y ?? undefined,
           drawing, comment: commentText,
-          author: isClient ? authorName : 'Director',
+          author: isClient ? effectiveAuthor : 'Director',
           role: isClient ? 'CLIENT' : 'ADMIN',
         }),
       })
@@ -264,13 +266,17 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     setEditId(null)
   }
 
+  const annotEndpoint = (id: string) => isClient
+    ? `/api/client/${shareToken}/annotations/${id}`
+    : `/api/videos/${videoId}/annotations/${id}`
+
   const resolveAnnotation = async (id: string) => {
     const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resolved: true }) })
     if (res.ok) setAnnotations(p => p.map(a => a.id === id ? { ...a, resolved: true } : a))
   }
 
   const deleteAnnotation = async (id: string) => {
-    await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'DELETE' })
+    await fetch(annotEndpoint(id), { method: 'DELETE' })
     setAnnotations(p => p.filter(a => a.id !== id))
     if (activeId === id) setActiveId(null)
   }
@@ -288,7 +294,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       timestamp: editStart,
       endTimestamp: editEnd !== null && editEnd > editStart ? editEnd : null,
     }
-    const res = await fetch(`/api/videos/${videoId}/annotations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const res = await fetch(annotEndpoint(id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     if (res.ok) {
       setAnnotations(p => p.map(a => a.id === id ? { ...a, comment: editText, timestamp: editStart, endTimestamp: editEnd && editEnd > editStart ? editEnd : null } : a).sort((a, b) => a.timestamp - b.timestamp))
       setEditId(null)
@@ -530,7 +536,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                   <span className={s.markerNum} style={{ background: 'var(--accent)' }}>+</span>
                 </div>
                 <div className={s.inlineForm}>
-                  {isClient && (
+                  {isClient && !clientName && (
                     <input
                       className={s.inlineInput}
                       placeholder="YOUR NAME"
@@ -572,7 +578,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                     <button
                       className={s.inlineSaveBtn}
                       onClick={submitAnnotation}
-                      disabled={!commentText.trim() || submitting || (isClient && !authorName.trim())}
+                      disabled={!commentText.trim() || submitting || (isClient && !(clientName ?? authorName).trim())}
                     >
                       {submitting ? '…' : '↵'}
                     </button>
@@ -737,13 +743,18 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
                 <div className={s.annotComment}>{a.comment}</div>
               )}
 
-              {!isClient && editId !== a.id && (
-                <div className={s.annotActions} onClick={e => e.stopPropagation()}>
-                  {!a.resolved && <button className={s.annotAction} onClick={() => resolveAnnotation(a.id)}>RESOLVE</button>}
-                  <button className={s.annotAction} onClick={() => startEdit(a)}>EDIT</button>
-                  <button className={s.annotAction} style={{ color: 'var(--accent)' }} onClick={() => deleteAnnotation(a.id)}>DELETE</button>
-                </div>
-              )}
+              {editId !== a.id && (() => {
+                const isOwn = isClient && a.role === 'CLIENT' && a.author === clientName
+                const canAct = !isClient || isOwn
+                if (!canAct) return null
+                return (
+                  <div className={s.annotActions} onClick={e => e.stopPropagation()}>
+                    {!isClient && !a.resolved && <button className={s.annotAction} onClick={() => resolveAnnotation(a.id)}>RESOLVE</button>}
+                    <button className={s.annotAction} onClick={() => startEdit(a)}>EDIT</button>
+                    <button className={s.annotAction} style={{ color: 'var(--accent)' }} onClick={() => deleteAnnotation(a.id)}>DELETE</button>
+                  </div>
+                )
+              })()}
 
               <div className={s.annotDate}>{new Date(a.createdAt).toLocaleDateString('de-CH')}</div>
             </div>

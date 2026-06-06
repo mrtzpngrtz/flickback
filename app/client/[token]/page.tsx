@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getPresignedDownloadUrl } from '@/lib/storage'
-import { formatDuration, formatDate } from '@/lib/utils'
-import VideoAnnotator from '@/app/review/[id]/VideoAnnotator'
+import { formatDate, formatDuration } from '@/lib/utils'
+import ClientView from './ClientView'
 
 export const revalidate = 0
 
@@ -62,17 +62,18 @@ export default async function ClientPage({ params }: Props) {
 
       {/* Root layout adds paddingTop:40 — annotator fills the remaining viewport height */}
       <div style={{ height: 'calc(100vh - 40px)', overflow: 'hidden' }}>
-        <VideoAnnotator
+        <ClientView
           videoUrl={videoUrl}
           videoId={video.id}
-          initialAnnotations={video.annotations.map(a => ({
+          shareToken={token}
+          videoTitle={video.title}
+          videoDuration={video.duration}
+          annotations={video.annotations.map(a => ({
             ...a,
             drawing: a.drawing ?? null,
             role: a.role as 'ADMIN' | 'CLIENT',
             createdAt: a.createdAt.toISOString(),
           }))}
-          isClient
-          shareToken={token}
         />
       </div>
     </>
