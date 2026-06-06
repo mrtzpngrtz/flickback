@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import s from './VideoAnnotator.module.css'
 import Timeline from './Timeline'
+import { formatBytes, formatDuration } from '@/lib/utils'
 
 interface Point { x: number; y: number }
 
@@ -26,6 +27,13 @@ interface Props {
   initialAnnotations: AnnotationData[]
   isClient?: boolean
   shareToken?: string
+  videoTitle?: string
+  videoFilename?: string
+  videoDescription?: string | null
+  versionNote?: string | null
+  tags?: string[]
+  videoDuration?: number | null
+  videoSize?: number | null
 }
 
 function formatTimecode(s: number) {
@@ -42,7 +50,7 @@ function formatShort(s: number) {
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken }: Props) {
+export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, isClient, shareToken, videoTitle, videoFilename, videoDescription, versionNote, tags, videoDuration, videoSize }: Props) {
   const videoRef   = useRef<HTMLVideoElement>(null)
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -396,6 +404,21 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     <div className={s.root}>
       {/* ── Video column ── */}
       <div className={s.videoCol}>
+
+        {/* 2D / 3D view switch */}
+        <div className={s.viewSwitchBar}>
+          <div className={s.viewToggle}>
+            <button
+              className={`${s.viewToggleBtn}${!view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => view3d && toggle3d()}
+            >2D</button>
+            <button
+              className={`${s.viewToggleBtn}${view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => !view3d && toggle3d()}
+            >3D</button>
+          </div>
+        </div>
+
         <div
           ref={wrapperRef}
           className={s.videoWrapper}
@@ -440,17 +463,6 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             />
           )}
 
-          {/* 2D / 3D toggle — top-right of video */}
-          <div className={s.viewToggle}>
-            <button
-              className={`${s.viewToggleBtn}${!view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
-              onClick={() => view3d && toggle3d()}
-            >2D</button>
-            <button
-              className={`${s.viewToggleBtn}${view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
-              onClick={() => !view3d && toggle3d()}
-            >3D</button>
-          </div>
 
           {/* Saved annotation markers — visible at their timestamp only */}
           {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
@@ -642,6 +654,29 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
       {/* ── Annotation column ── */}
       <div className={s.annotCol}>
+
+        {/* Video info panel */}
+        <div className={s.videoInfo}>
+          {videoTitle && <div className={s.videoInfoTitle}>{videoTitle}</div>}
+          <div className={s.videoInfoMeta}>
+            {videoDuration != null && <span>{formatDuration(videoDuration)}</span>}
+            {videoSize != null && <span>{formatBytes(videoSize)}</span>}
+            {videoFilename && <span className={s.videoInfoFilename}>{videoFilename}</span>}
+          </div>
+          {versionNote && <div className={s.videoInfoVersion}>{versionNote}</div>}
+          {videoDescription && <div className={s.videoInfoDesc}>{videoDescription}</div>}
+          {tags && tags.length > 0 && (
+            <div className={s.videoInfoTags}>
+              {tags.map(t => <span key={t} className={s.videoInfoTag}>{t}</span>)}
+            </div>
+          )}
+          <a
+            href={videoUrl}
+            download={videoFilename ?? 'video'}
+            className={s.downloadBtn}
+          >↓ DOWNLOAD</a>
+        </div>
+
         <div className={s.listHeader}>
           <span className="lbl">ANNOTATIONS</span>
           <span className={s.listCount}>{String(annotations.length).padStart(2, '0')}</span>

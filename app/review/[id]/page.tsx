@@ -59,6 +59,13 @@ export default async function ReviewPage({ params }: Props) {
             role: a.role as 'ADMIN' | 'CLIENT',
             createdAt: a.createdAt.toISOString(),
           }))}
+          videoTitle={video.title}
+          videoFilename={video.filename}
+          videoDescription={video.description}
+          versionNote={video.versionNote}
+          tags={video.tags}
+          videoDuration={video.duration}
+          videoSize={Number(video.size)}
         />
       </div>
     </>

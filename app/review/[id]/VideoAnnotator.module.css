@@ -51,27 +51,32 @@
   background: #000;
 }
 
-/* ── 2D / 3D view toggle ── */
-.viewToggle {
-  position:        absolute;
-  top:             12px;
-  right:           12px;
-  z-index:         20;
+/* ── 2D / 3D switch bar (top of videoCol) ── */
+.viewSwitchBar {
   display:         flex;
-  background:      rgba(0,0,0,.55);
-  border:          1px solid rgba(255,255,255,.18);
-  border-radius:   4px;
-  overflow:        hidden;
-  backdrop-filter: blur(6px);
+  align-items:     center;
+  justify-content: flex-end;
+  padding:         6px 12px;
+  background:      #111;
+  border-bottom:   1px solid #222;
+  flex-shrink:     0;
+}
+
+.viewToggle {
+  display:      flex;
+  background:   #1a1a1a;
+  border:       1px solid #333;
+  border-radius: 4px;
+  overflow:     hidden;
 }
 
 .viewToggleBtn {
   font-family:    var(--font-swiss);
-  font-size:      11px;
-  font-weight:    600;
-  letter-spacing: .1em;
-  padding:        6px 16px;
-  color:          rgba(255,255,255,.45);
+  font-size:      12px;
+  font-weight:    700;
+  letter-spacing: .12em;
+  padding:        6px 22px;
+  color:          rgba(255,255,255,.35);
   background:     transparent;
   border:         none;
   cursor:         pointer;
@@ -79,12 +84,104 @@
   white-space:    nowrap;
 }
 
-.viewToggleBtn:hover { color: rgba(255,255,255,.8); }
+.viewToggleBtn:hover { color: rgba(255,255,255,.7); }
 
 .viewToggleBtnActive {
-  background: rgba(255,255,255,.15);
+  background: rgba(255,255,255,.12);
   color:      #fff;
   cursor:     default;
+}
+
+/* ── Video info panel ── */
+.videoInfo {
+  padding:       var(--sp-16);
+  border-bottom: 1px solid var(--gray-10);
+  flex-shrink:   0;
+  display:       flex;
+  flex-direction: column;
+  gap:           var(--sp-8);
+}
+
+.videoInfoTitle {
+  font-size:      14px;
+  font-weight:    600;
+  letter-spacing: .01em;
+  color:          var(--black);
+  line-height:    1.2;
+}
+
+.videoInfoMeta {
+  display:     flex;
+  gap:         var(--sp-12);
+  flex-wrap:   wrap;
+  align-items: center;
+}
+
+.videoInfoMeta span {
+  font-family:    var(--font-mono);
+  font-size:      10px;
+  letter-spacing: .04em;
+  color:          var(--gray-50);
+}
+
+.videoInfoFilename {
+  overflow:     hidden;
+  text-overflow: ellipsis;
+  white-space:  nowrap;
+  max-width:    140px;
+}
+
+.videoInfoVersion {
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color:          var(--accent);
+}
+
+.videoInfoDesc {
+  font-size:   12px;
+  line-height: 1.4;
+  color:       var(--gray-70);
+}
+
+.videoInfoTags {
+  display:  flex;
+  gap:      var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.videoInfoTag {
+  font-size:      9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding:        2px 6px;
+  background:     var(--gray-00);
+  border:         1px solid var(--gray-10);
+  color:          var(--gray-50);
+}
+
+.downloadBtn {
+  display:        inline-flex;
+  align-items:    center;
+  font-size:      10px;
+  font-weight:    600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-family:    var(--font-swiss);
+  color:          var(--black);
+  background:     var(--gray-00);
+  border:         1px solid var(--gray-10);
+  padding:        5px 12px;
+  text-decoration: none;
+  cursor:         pointer;
+  align-self:     flex-start;
+  transition:     background .1s, border-color .1s;
+}
+
+.downloadBtn:hover {
+  background:     var(--gray-10);
+  border-color:   var(--gray-30);
 }
 
 /* ── Video markers (post-its) ───────────────── */
