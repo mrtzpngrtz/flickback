@@ -433,7 +433,6 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               if (now - lastTimeUpdateRef.current > 100) {
                 lastTimeUpdateRef.current = now
                 setCurrentTime(v.currentTime)
-                if (view3dRef.current) postTo3d({ type: 'seek', time: v.currentTime })
               }
             }}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
@@ -443,7 +442,11 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               currentTimeRef.current = v.currentTime; setCurrentTime(v.currentTime)
               if (view3dRef.current) postTo3d({ type: 'seek', time: v.currentTime })
             }}
-            onPlay={() => { setIsPlaying(true); setActiveId(null); if (view3dRef.current) postTo3d({ type: 'play' }) }}
+            onPlay={() => {
+              const v = videoRef.current
+              setIsPlaying(true); setActiveId(null)
+              if (view3dRef.current) postTo3d({ type: 'play', time: v?.currentTime ?? 0 })
+            }}
             onPause={() => { setIsPlaying(false); if (view3dRef.current) postTo3d({ type: 'pause' }) }}
             onRateChange={() => { const v = videoRef.current; if (v && view3dRef.current) postTo3d({ type: 'rate', rate: v.playbackRate }) }}
             playsInline
