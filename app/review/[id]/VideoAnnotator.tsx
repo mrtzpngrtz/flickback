@@ -88,6 +88,20 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const dragJustEndedRef = useRef(false)
 
+  // 3D view
+  const [view3d, setView3d] = useState(false)
+  const [iframeSrc, setIframeSrc] = useState('')
+
+  const toggle3d = useCallback(() => {
+    setView3d(prev => {
+      if (!prev) {
+        const t = currentTimeRef.current
+        setIframeSrc(`/3d-viewer.html?src=${encodeURIComponent(videoUrl)}&t=${t.toFixed(3)}`)
+      }
+      return !prev
+    })
+  }, [videoUrl])
+
   // Marker drag
   const markerDragRef = useRef<{
     annotId: string | 'pending'
@@ -400,6 +414,16 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
           />
 
+          {/* 3D view overlay */}
+          {view3d && iframeSrc && (
+            <iframe
+              src={iframeSrc}
+              className={s.viewer3d}
+              title="3D Preview"
+              allow="autoplay"
+            />
+          )}
+
           {/* Saved annotation markers — visible at their timestamp only */}
           {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
             const isActive = a.id === activeId
@@ -540,8 +564,14 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
+          <button
+            className={`${s.ctrlBtn}${view3d ? ` ${s['ctrlBtn--active']}` : ''}`}
+            style={{ marginLeft: 'auto' }}
+            onClick={toggle3d}
+            title="Toggle 3D corner-wall preview"
+          >3D</button>
           {pendingTs === null
-            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
+            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} style={{ marginLeft: 0 }} onClick={openAnnotation}>+ ANNOTATE</button>
             : <>
                 <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={toggleDraw}>✏ DRAW</button>
                 {drawActive && (

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corner LED Wall Preview</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+        canvas { display: block; }
+
+        #ui {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 10px;
+            background: #000; border: 1px solid rgba(255,255,255,.12);
+            border-radius: 6px; padding: 8px 14px;
+            z-index: 10; white-space: nowrap;
+        }
+        .btn {
+            background: none; border: 1px solid rgba(255,255,255,.25);
+            color: #fff; padding: 5px 12px; border-radius: 4px; cursor: pointer;
+            font-size: 12px; letter-spacing: .04em; transition: border-color .15s; outline: none;
+        }
+        .btn:hover { border-color: #fff; }
+        #info { color: rgba(255,255,255,.3); font-size: 11px; }
+        .sep { width: 1px; height: 18px; background: rgba(255,255,255,.12); flex-shrink: 0; }
+        #bg-color {
+            -webkit-appearance: none; width: 22px; height: 22px; padding: 0;
+            border: 1px solid rgba(255,255,255,.25); border-radius: 3px; cursor: pointer; background: none;
+        }
+        #bg-color::-webkit-color-swatch-wrapper { padding: 0; }
+        #bg-color::-webkit-color-swatch { border: none; border-radius: 2px; }
+        #outline-btn.off { opacity: .35; }
+
+        /* ── player ─────────────────────────────────────────── */
+        #player { display: none; align-items: center; gap: 8px; }
+        #player.show { display: flex; }
+
+        .ibtn {
+            background: none; border: none;
+            color: #fff; width: 24px; height: 24px; cursor: pointer;
+            font-size: 12px; display: flex; align-items: center; justify-content: center;
+            outline: none; opacity: .7; transition: opacity .15s; flex-shrink: 0; padding: 0;
+        }
+        .ibtn:hover { opacity: 1; }
+
+        .tc {
+            color: rgba(255,255,255,.45); font-size: 11px;
+            font-variant-numeric: tabular-nums; min-width: 30px; text-align: center;
+        }
+
+        .tl-wrap { width: 260px; display: flex; align-items: center; }
+
+        #timeline {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 2px; border-radius: 1px; outline: none; cursor: pointer;
+            background: rgba(255,255,255,.2);
+        }
+        #timeline::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 11px; height: 11px;
+            border-radius: 50%; background: #fff; cursor: pointer;
+        }
+        #timeline::-moz-range-thumb {
+            width: 11px; height: 11px; border-radius: 50%;
+            background: #fff; border: none; cursor: pointer;
+        }
+
+        #hint {
+            position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,.18); font-size: 11px; letter-spacing: .05em;
+            pointer-events: none; z-index: 5;
+        }
+        #drop-overlay {
+            position: fixed; inset: 0; display: none; align-items: center;
+            justify-content: center; background: rgba(0,0,0,.5);
+            border: 2px dashed rgba(255,255,255,.35);
+            color: rgba(255,255,255,.7); font-size: 18px;
+            z-index: 50; pointer-events: none;
+        }
+        #drop-overlay.show { display: flex; }
+
+        #labels {
+            position: fixed; inset: 0; pointer-events: none; z-index: 5;
+        }
+        .lbl {
+            position: absolute; color: rgba(255,255,255,.3);
+            font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+            transform: translate(-50%,-50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+    <div id="drop-overlay">↓ Drop video to preview</div>
+    <div id="labels">
+        <div class="lbl" id="lbl1" style="display:none">Wall A — ½</div>
+        <div class="lbl" id="lbl2" style="display:none">Wall B — ½</div>
+    </div>
+
+    <div id="ui">
+        <input type="file" id="file-input" accept="video/*" style="display:none">
+        <button class="btn" id="upload-btn"
+                onclick="document.getElementById('file-input').click()">Upload</button>
+
+        <div id="player">
+            <button class="ibtn" id="play-btn" title="Play / Pause">▶</button>
+            <span class="tc" id="time-cur">0:00</span>
+            <div class="tl-wrap">
+                <input type="range" id="timeline" min="0" max="1000" value="0" step="1">
+            </div>
+            <span class="tc" id="time-dur">0:00</span>
+            <button class="ibtn" id="mute-btn" title="Mute / Unmute">🔇</button>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="1"
+                   style="width:70px;accent-color:#fff;cursor:pointer;">
+        </div>
+
+        <span id="info">Upload a video — splits 50 / 50</span>
+
+        <div class="sep"></div>
+        <input type="color" id="bg-color" value="#1c1c1c" title="Background colour">
+        <button class="btn" id="outline-btn" title="Toggle wall outline">Outline</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ── constants ──────────────────────────────────────────────────
+        const WALL  = 2;       // both walls are WALL × WALL squares
+        const SPLIT = 1 / 2;  // video split: each wall gets 50%
+
+        // ── renderer ───────────────────────────────────────────────────
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.toneMapping = THREE.NoToneMapping;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        document.body.prepend(renderer.domElement);
+
+        // ── scene ──────────────────────────────────────────────────────
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1c1c1c);
+        scene.fog = new THREE.FogExp2(0x1c1c1c, 0.055);
+
+        // ── camera ─────────────────────────────────────────────────────
+        const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 100);
+        camera.position.set(-0.5, 0.8, -3);
+
+        // ── controls ───────────────────────────────────────────────────
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0.5, 0, -0.5);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.enableZoom = false;   // replaced with custom scroll below
+        controls.minDistance = 0.5;
+        controls.maxDistance = 20;
+        controls.update();
+
+        // Custom scroll zoom — fixed 5% step per tick, ignores raw deltaY magnitude
+        const _zoomDir = new THREE.Vector3();
+        renderer.domElement.addEventListener('wheel', e => {
+            e.preventDefault();
+            _zoomDir.subVectors(controls.target, camera.position).normalize();
+            const dist = camera.position.distanceTo(controls.target);
+            const step = dist * 0.05 * (e.deltaY > 0 ? 1 : -1);
+            const newDist = dist + step;
+            if (newDist >= controls.minDistance && newDist <= controls.maxDistance)
+                camera.position.addScaledVector(_zoomDir, step);
+        }, { passive: false });
+
+        // ── lights ─────────────────────────────────────────────────────
+        scene.add(new THREE.AmbientLight(0x111128, 1));
+
+        // ── floor ──────────────────────────────────────────────────────
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(30, 30),
+            new THREE.MeshBasicMaterial({ color: 0x0a0a0a })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -WALL / 2;
+        scene.add(floor);
+
+        // ── textures ───────────────────────────────────────────────────
+        function makeLEDTex() {
+            const sz = 512, c = document.createElement('canvas');
+            c.width = c.height = sz;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#06060f';
+            ctx.fillRect(0, 0, sz, sz);
+            const n = 32, cw = sz / n;
+            for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+                ctx.beginPath();
+                ctx.arc((i + .5) * cw, (j + .5) * cw, cw * .28, 0, Math.PI * 2);
+                ctx.fillStyle = '#0d0d22';
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(c);
+        }
+
+        function makeGridTex() {
+            const sz = 512, n = 32, c = document.createElement('canvas');
+            c.width = c.height = sz;
+            const ctx = c.getContext('2d');
+            const cw = sz / n;
+            ctx.fillStyle = 'rgba(0,0,0,0.32)';
+            for (let i = 0; i <= n; i++) {
+                ctx.fillRect(Math.round(i * cw), 0, 1, sz);
+                ctx.fillRect(0, Math.round(i * cw), sz, 1);
+            }
+            const t = new THREE.CanvasTexture(c);
+            t.premultiplyAlpha = true;
+            return t;
+        }
+
+        const ledTex  = makeLEDTex();
+        const gridTex = makeGridTex();
+
+        // ── wall geometry with custom UV range ─────────────────────────
+        function wallGeo(u0, u1) {
+            const g = new THREE.PlaneGeometry(WALL, WALL);
+            const uv = g.attributes.uv;
+            // index layout: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
+            uv.setXY(0, u0, 1); uv.setXY(1, u1, 1);
+            uv.setXY(2, u0, 0); uv.setXY(3, u1, 0);
+            uv.needsUpdate = true;
+            return g;
+        }
+
+        // ── wall materials (shared texture, separate material instances) ─
+        const mat1 = new THREE.MeshBasicMaterial({ map: ledTex });
+        const mat2 = new THREE.MeshBasicMaterial({ map: ledTex });
+
+        // Wall 1 — back wall — faces -Z (toward camera at z<0) — right half of video
+        const wall1 = new THREE.Mesh(wallGeo(SPLIT, 1), mat1);
+        wall1.position.set(0, 0, 0);
+        wall1.rotation.y = Math.PI;
+        scene.add(wall1);
+
+        // Wall 2 — side wall — faces -X (toward camera at x<1) — left half of video
+        // corner joint at (WALL/2, y, 0) = (1, y, 0), shared with wall1's right edge
+        const wall2 = new THREE.Mesh(wallGeo(0, SPLIT), mat2);
+        wall2.position.set(WALL / 2, 0, -WALL / 2);
+        wall2.rotation.y = -Math.PI / 2;
+        scene.add(wall2);
+
+        // ── LED grid overlays ──────────────────────────────────────────
+        const overlayMat = new THREE.MeshBasicMaterial({
+            map: gridTex, transparent: true, depthWrite: false,
+            polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+        });
+
+        function addOverlay(ref) {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(WALL, WALL), overlayMat);
+            m.position.copy(ref.position);
+            m.rotation.copy(ref.rotation);
+            scene.add(m);
+        }
+        addOverlay(wall1);
+        addOverlay(wall2);
+
+
+        // ── wall outlines ──────────────────────────────────────────────
+        const outlineMat = new THREE.LineBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.55,
+        });
+
+        function makeOutline(wall) {
+            const hw = WALL / 2;
+            const geo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-hw, -hw, 0),
+                new THREE.Vector3( hw, -hw, 0),
+                new THREE.Vector3( hw,  hw, 0),
+                new THREE.Vector3(-hw,  hw, 0),
+                new THREE.Vector3(-hw, -hw, 0),
+            ]);
+            const line = new THREE.Line(geo, outlineMat);
+            line.position.copy(wall.position);
+            line.rotation.copy(wall.rotation);
+            line.translateZ(0.003); // nudge in front of wall face
+            scene.add(line);
+            return line;
+        }
+
+        const outline1 = makeOutline(wall1);
+        const outline2 = makeOutline(wall2);
+
+        // outline toggle
+        document.getElementById('outline-btn').addEventListener('click', function () {
+            const on = outline1.visible = outline2.visible = !outline1.visible;
+            this.classList.toggle('off', !on);
+        });
+
+        // ── video ──────────────────────────────────────────────────────
+        const video = document.createElement('video');
+        video.loop = true;
+        video.muted = true;   // start muted for autoplay; user can unmute
+        video.playsInline = true;
+
+        let videoTex = null;
+
+        // ── player UI refs ─────────────────────────────────────────────
+        const elPlayer   = document.getElementById('player');
+        const elPlayBtn  = document.getElementById('play-btn');
+        const elMuteBtn  = document.getElementById('mute-btn');
+        const elTimeline = document.getElementById('timeline');
+        const elTimeCur  = document.getElementById('time-cur');
+        const elTimeDur  = document.getElementById('time-dur');
+        const elInfo     = document.getElementById('info');
+
+        function formatTime(s) {
+            if (!isFinite(s)) return '0:00';
+            const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+            return `${m}:${ss.toString().padStart(2, '0')}`;
+        }
+
+        function updatePlayerUI() {
+            if (!video.duration) return;
+            const pct = video.currentTime / video.duration;
+            elTimeline.value = Math.round(pct * 1000);
+            elTimeline.style.background =
+                `linear-gradient(to right,#fff ${pct*100}%,rgba(255,255,255,.2) ${pct*100}%)`;
+            elTimeCur.textContent = formatTime(video.currentTime);
+            elTimeDur.textContent = formatTime(video.duration);
+            elPlayBtn.textContent = video.paused ? '▶' : '⏸';
+        }
+
+        function loadVideo(url, name) {
+            video.src = url;
+            video.play().catch(() => {});
+            if (videoTex) videoTex.dispose();
+            videoTex = new THREE.VideoTexture(video);
+            videoTex.colorSpace = THREE.SRGBColorSpace;
+            videoTex.minFilter = THREE.LinearFilter;
+            videoTex.magFilter = THREE.LinearFilter;
+            mat1.map = mat2.map = videoTex;
+            mat1.needsUpdate = mat2.needsUpdate = true;
+            elInfo.style.display = 'none';
+            elPlayer.classList.add('show');
+            document.getElementById('lbl1').style.display = '';
+            document.getElementById('lbl2').style.display = '';
+        }
+
+        // timeline scrub
+        let scrubbing = false;
+        elTimeline.addEventListener('mousedown', () => { scrubbing = true; });
+        elTimeline.addEventListener('mouseup',   () => { scrubbing = false; });
+        elTimeline.addEventListener('input', () => {
+            if (video.duration)
+                video.currentTime = (elTimeline.value / 1000) * video.duration;
+        });
+
+        // play / pause
+        elPlayBtn.addEventListener('click', () => {
+            video.paused ? video.play() : video.pause();
+        });
+
+        // volume slider
+        const elVolume = document.getElementById('volume');
+        elVolume.addEventListener('input', () => {
+            video.volume = elVolume.value;
+            video.muted = elVolume.value == 0;
+            elMuteBtn.textContent = video.muted ? '🔇' : '🔊';
+        });
+
+        // mute / unmute
+        elMuteBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            elMuteBtn.textContent = video.muted ? '🔇' : '🔊';
+            elVolume.value = video.muted ? 0 : video.volume;
+        });
+
+        // background colour
+        document.getElementById('bg-color').addEventListener('input', e => {
+            const c = new THREE.Color(e.target.value);
+            scene.background = c;
+            scene.fog.color.copy(c);
+        });
+
+        // file input
+        document.getElementById('file-input').addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (f) loadVideo(URL.createObjectURL(f), f.name);
+        });
+
+        // drag & drop
+        const dropOverlay = document.getElementById('drop-overlay');
+        document.addEventListener('dragenter', e => {
+            if (e.dataTransfer.types.includes('Files')) dropOverlay.classList.add('show');
+        });
+        document.addEventListener('dragover', e => e.preventDefault());
+        document.addEventListener('dragleave', e => {
+            if (!e.relatedTarget) dropOverlay.classList.remove('show');
+        });
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            dropOverlay.classList.remove('show');
+            const f = e.dataTransfer.files[0];
+            if (f?.type.startsWith('video/')) loadVideo(URL.createObjectURL(f), f.name);
+        });
+
+        // ── project 3-D point to 2-D screen for labels ─────────────────
+        const _v3 = new THREE.Vector3();
+        function project(wx, wy, wz) {
+            _v3.set(wx, wy, wz).project(camera);
+            return {
+                x: ( _v3.x * .5 + .5) * innerWidth,
+                y: (-_v3.y * .5 + .5) * innerHeight,
+            };
+        }
+
+        // ── resize ─────────────────────────────────────────────────────
+        window.addEventListener('resize', () => {
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
+
+        // ── animate ────────────────────────────────────────────────────
+        const lbl1 = document.getElementById('lbl1');
+        const lbl2 = document.getElementById('lbl2');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            if (videoTex) { videoTex.needsUpdate = true; if (!scrubbing) updatePlayerUI(); }
+            renderer.render(scene, camera);
+
+            // update floating labels
+            if (lbl1.style.display !== 'none') {
+                const p1 = project(0, WALL / 2 + 0.18, 0);
+                lbl1.style.left = p1.x + 'px';
+                lbl1.style.top  = p1.y + 'px';
+                const p2 = project(WALL / 2, WALL / 2 + 0.18, -WALL / 2);
+                lbl2.style.left = p2.x + 'px';
+                lbl2.style.top  = p2.y + 'px';
+            }
+        }
+        animate();
+    </script>
+</body>
+</html>
