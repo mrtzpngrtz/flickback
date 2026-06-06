@@ -33,7 +33,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(body.tags !== undefined && { tags: body.tags }),
       ...(body.projectId !== undefined && { projectId: body.projectId || null }),
     },
-    include: { project: { select: { id: true, name: true } } },
+    include: {
+      project: { select: { id: true, name: true } },
+      _count: { select: { annotations: true } },
+    },
   })
   return NextResponse.json({ ...video, size: video.size.toString() })
 }
