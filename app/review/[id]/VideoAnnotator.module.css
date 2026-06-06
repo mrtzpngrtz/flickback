@@ -51,6 +51,42 @@
   background: #000;
 }
 
+/* ── 2D / 3D view toggle ── */
+.viewToggle {
+  position:        absolute;
+  top:             12px;
+  right:           12px;
+  z-index:         20;
+  display:         flex;
+  background:      rgba(0,0,0,.55);
+  border:          1px solid rgba(255,255,255,.18);
+  border-radius:   4px;
+  overflow:        hidden;
+  backdrop-filter: blur(6px);
+}
+
+.viewToggleBtn {
+  font-family:    var(--font-swiss);
+  font-size:      11px;
+  font-weight:    600;
+  letter-spacing: .1em;
+  padding:        6px 16px;
+  color:          rgba(255,255,255,.45);
+  background:     transparent;
+  border:         none;
+  cursor:         pointer;
+  transition:     background .12s, color .12s;
+  white-space:    nowrap;
+}
+
+.viewToggleBtn:hover { color: rgba(255,255,255,.8); }
+
+.viewToggleBtnActive {
+  background: rgba(255,255,255,.15);
+  color:      #fff;
+  cursor:     default;
+}
+
 /* ── Video markers (post-its) ───────────────── */
 .marker {
   position:  absolute;

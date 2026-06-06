@@ -91,12 +91,19 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   // 3D view
   const [view3d, setView3d] = useState(false)
   const [iframeSrc, setIframeSrc] = useState('')
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const view3dRef = useRef(false)
+  useEffect(() => { view3dRef.current = view3d }, [view3d])
+
+  const postTo3d = useCallback((msg: object) => {
+    iframeRef.current?.contentWindow?.postMessage(msg, '*')
+  }, [])
 
   const toggle3d = useCallback(() => {
     setView3d(prev => {
       if (!prev) {
         const t = currentTimeRef.current
-        setIframeSrc(`/3d-viewer.html?src=${encodeURIComponent(videoUrl)}&t=${t.toFixed(3)}`)
+        setIframeSrc(`/3d-viewer.html?src=${encodeURIComponent(videoUrl)}&t=${t.toFixed(3)}&embed=1`)
       }
       return !prev
     })
@@ -403,12 +410,20 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               if (now - lastTimeUpdateRef.current > 100) {
                 lastTimeUpdateRef.current = now
                 setCurrentTime(v.currentTime)
+                if (view3dRef.current) postTo3d({ type: 'seek', time: v.currentTime })
               }
             }}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
             onProgress={() => { const v = videoRef.current; if (v?.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)) }}
-            onSeeked={() => { const v = videoRef.current; if (!v) return; currentTimeRef.current = v.currentTime; setCurrentTime(v.currentTime) }}
-            onPlay={() => { setIsPlaying(true); setActiveId(null) }} onPause={() => setIsPlaying(false)} playsInline
+            onSeeked={() => {
+              const v = videoRef.current; if (!v) return
+              currentTimeRef.current = v.currentTime; setCurrentTime(v.currentTime)
+              if (view3dRef.current) postTo3d({ type: 'seek', time: v.currentTime })
+            }}
+            onPlay={() => { setIsPlaying(true); setActiveId(null); if (view3dRef.current) postTo3d({ type: 'play' }) }}
+            onPause={() => { setIsPlaying(false); if (view3dRef.current) postTo3d({ type: 'pause' }) }}
+            onRateChange={() => { const v = videoRef.current; if (v && view3dRef.current) postTo3d({ type: 'rate', rate: v.playbackRate }) }}
+            playsInline
           />
           <canvas ref={canvasRef} className={s.canvas} style={canvasStyle}
             onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
@@ -417,12 +432,25 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           {/* 3D view overlay */}
           {view3d && iframeSrc && (
             <iframe
+              ref={iframeRef}
               src={iframeSrc}
               className={s.viewer3d}
               title="3D Preview"
               allow="autoplay"
             />
           )}
+
+          {/* 2D / 3D toggle — top-right of video */}
+          <div className={s.viewToggle}>
+            <button
+              className={`${s.viewToggleBtn}${!view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => view3d && toggle3d()}
+            >2D</button>
+            <button
+              className={`${s.viewToggleBtn}${view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => !view3d && toggle3d()}
+            >3D</button>
+          </div>
 
           {/* Saved annotation markers — visible at their timestamp only */}
           {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
@@ -564,14 +592,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          <button
-            className={`${s.ctrlBtn}${view3d ? ` ${s['ctrlBtn--active']}` : ''}`}
-            style={{ marginLeft: 'auto' }}
-            onClick={toggle3d}
-            title="Toggle 3D corner-wall preview"
-          >3D</button>
           {pendingTs === null
-            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} style={{ marginLeft: 0 }} onClick={openAnnotation}>+ ANNOTATE</button>
+            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
             : <>
                 <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={toggleDraw}>✏ DRAW</button>
                 {drawActive && (

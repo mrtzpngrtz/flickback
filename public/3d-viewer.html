@@ -330,13 +330,20 @@
 
         // ── URL param auto-load ──
         const params = new URLSearchParams(location.search);
-        const srcParam = params.get('src');
-        const tParam   = parseFloat(params.get('t') || '0');
+        const srcParam   = params.get('src');
+        const tParam     = parseFloat(params.get('t') || '0');
+        const embedParam = params.get('embed') === '1';
 
-        if (srcParam) {
+        if (embedParam) {
+            // hide player controls — driven by parent via postMessage
+            document.getElementById('player').style.display = 'none';
+            document.getElementById('info').style.display = 'none';
             document.getElementById('upload-btn').style.display = 'none';
             document.getElementById('drop-overlay').style.pointerEvents = 'none';
             document.getElementById('hint').style.display = 'none';
+        }
+
+        if (srcParam) {
             loadVideo(decodeURIComponent(srcParam));
             video.addEventListener('loadedmetadata', () => {
                 if (tParam > 0) video.currentTime = tParam;
@@ -346,9 +353,10 @@
         // ── postMessage API from parent ──
         window.addEventListener('message', e => {
             if (!e.data) return;
-            if (e.data.type === 'seek')  video.currentTime = e.data.time;
-            if (e.data.type === 'play')  video.play().catch(() => {});
-            if (e.data.type === 'pause') video.pause();
+            if (e.data.type === 'seek')  { video.currentTime = e.data.time; }
+            if (e.data.type === 'play')  { video.currentTime = e.data.time ?? video.currentTime; video.play().catch(() => {}); }
+            if (e.data.type === 'pause') { video.pause(); }
+            if (e.data.type === 'rate')  { video.playbackRate = e.data.rate; }
             if (e.data.type === 'load')  { loadVideo(decodeURIComponent(e.data.src)); }
         });
 
