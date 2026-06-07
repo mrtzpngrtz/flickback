@@ -332,6 +332,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       const v = videoRef.current; if (!v) return
       v.pause()
       setPendingTs(v.currentTime)
+      setPendingMarker({ x: 0.08, y: 0.88 })
       setCommentText('')
       setDrawnPaths([])
       setPathMeta([])
