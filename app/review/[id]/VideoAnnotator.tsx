@@ -179,20 +179,19 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     }
 
     if (showAnnotations) {
-      const active = annotations.find(a => a.id === activeId)
-      if (active?.drawing) {
-        const t = currentTimeRef.current
-        const inRange = active.endTimestamp != null
-          ? t >= active.timestamp && t <= active.endTimestamp
-          : Math.abs(t - active.timestamp) < 0.5
-        if (inRange) {
-          try {
-            const parsed = JSON.parse(active.drawing)
-            if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
-            else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
-          } catch {}
-        }
-      }
+      const t = currentTimeRef.current
+      annotations.forEach(a => {
+        if (!a.drawing) return
+        const inRange = a.endTimestamp != null
+          ? t >= a.timestamp && t <= a.endTimestamp
+          : Math.abs(t - a.timestamp) < 0.5
+        if (!inRange) return
+        try {
+          const parsed = JSON.parse(a.drawing)
+          if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
+          else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
+        } catch {}
+      })
     }
 
     // Standalone DRAW mode strokes
