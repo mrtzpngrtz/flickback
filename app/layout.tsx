@@ -8,6 +8,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Flickback',
   description: 'Video feedback tool',
+  icons: { icon: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
