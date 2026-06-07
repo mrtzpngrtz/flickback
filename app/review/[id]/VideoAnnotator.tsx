@@ -596,7 +596,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
         {/* Controls */}
         <div className={s.controls}>
-          <button className={s.ctrlBtn} onClick={togglePlay}>{isPlaying ? 'PAUSE' : 'PLAY'}</button>
+          <button className={`${s.ctrlBtn} ${s['ctrlBtn--play']}`} onClick={togglePlay}>{isPlaying ? '⏸ PAUSE' : '▶ PLAY'}</button>
           <button className={s.ctrlBtn} onClick={stop}>STOP</button>
           <span className={s.ctrlSep} />
           <button className={s.ctrlBtn} onClick={() => stepFrame(-1)}>‹</button>
