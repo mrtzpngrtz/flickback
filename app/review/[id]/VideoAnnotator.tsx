@@ -78,7 +78,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [editStart, setEditStart] = useState<number>(0)
   const [editEnd, setEditEnd] = useState<number | null>(null)
 
-  // New annotation form
+  // New annotation form (NOTE mode)
   const [pendingTs, setPendingTs] = useState<number | null>(null)
   const [pendingEnd, setPendingEnd] = useState<number | null>(null)
   const [pendingMarker, setPendingMarker] = useState<{ x: number; y: number } | null>(null)
@@ -86,7 +86,11 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   const [authorName, setAuthorName] = useState(clientName ?? '')
   const [submitting, setSubmitting] = useState(false)
 
-  // Drawing (only active when annotation form is open)
+  // Standalone DRAW mode (separate from note mode)
+  const [drawTs, setDrawTs] = useState<number | null>(null)
+  const [drawEnd, setDrawEnd] = useState<number | null>(null)
+
+  // Drawing (active in both DRAW mode and note+draw mode)
   const [drawActive, setDrawActive] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawnPaths, setDrawnPaths] = useState<Point[][]>([])
@@ -191,18 +195,30 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       }
     }
 
-    // Show in-progress strokes only near pendingTs (same range logic as saved drawings)
-    if (pendingTs !== null && (drawnPaths.length > 0 || currentPath.length > 1)) {
+    // Standalone DRAW mode strokes
+    if (drawTs !== null && (drawnPaths.length > 0 || currentPath.length > 1)) {
       const t = currentTimeRef.current
-      const inPendingRange = pendingEnd != null && pendingEnd > pendingTs
-        ? t >= pendingTs && t <= pendingEnd
-        : Math.abs(t - pendingTs) < 0.5
-      if (inPendingRange) {
+      const inRange = drawEnd != null && drawEnd > drawTs
+        ? t >= drawTs && t <= drawEnd
+        : Math.abs(t - drawTs) < 0.5
+      if (inRange) {
         drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
         if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
       }
     }
-  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs, pendingEnd, showAnnotations])
+
+    // NOTE + draw mode strokes (inline editor open with draw toggled on)
+    if (pendingTs !== null && drawActive && (drawnPaths.length > 0 || currentPath.length > 1)) {
+      const t = currentTimeRef.current
+      const inRange = pendingEnd != null && pendingEnd > pendingTs
+        ? t >= pendingTs && t <= pendingEnd
+        : Math.abs(t - pendingTs) < 0.5
+      if (inRange) {
+        drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
+        if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
+      }
+    }
+  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs, pendingEnd, drawTs, drawEnd, drawActive, showAnnotations])
 
   // RAF loop for canvas — decoupled from React renders
   useEffect(() => {
@@ -237,11 +253,13 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   // Annotation actions
   const openAnnotation = useCallback(() => {
     const v = videoRef.current; if (!v) return
-    v.pause(); setPendingTs(v.currentTime); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
+    setDrawTs(null); setDrawEnd(null); setDrawActive(false)
+    v.pause(); setPendingTs(v.currentTime); setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([])
   }, [])
 
   const cancelAnnotation = useCallback(() => {
     setPendingTs(null); setPendingEnd(null); setPendingMarker(null)
+    setDrawTs(null); setDrawEnd(null)
     setCommentText(''); setDrawnPaths([]); setPathMeta([]); setCurrentPath([]); setDrawActive(false)
   }, [])
 
@@ -262,6 +280,27 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           markerY: pendingMarker?.y ?? undefined,
           drawing, comment: commentText,
           author: isClient ? effectiveAuthor : 'Director',
+          role: isClient ? 'CLIENT' : 'ADMIN',
+        }),
+      })
+      if (res.ok) { const created = await res.json(); setAnnotations(p => [...p, created].sort((a, b) => a.timestamp - b.timestamp)); cancelAnnotation() }
+    } finally { setSubmitting(false) }
+  }
+
+  const submitDrawing = async () => {
+    if (drawTs === null || drawnPaths.length === 0) return
+    setSubmitting(true)
+    const drawing = JSON.stringify({ paths: drawnPaths, meta: pathMeta })
+    const endpoint = isClient ? `/api/client/${shareToken}/annotations` : `/api/videos/${videoId}/annotations`
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: drawTs,
+          endTimestamp: drawEnd && drawEnd > drawTs ? drawEnd : undefined,
+          drawing,
+          comment: '',
+          author: isClient ? (clientName ?? 'Client') : 'Director',
           role: isClient ? 'CLIENT' : 'ADMIN',
         }),
       })
@@ -326,20 +365,19 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
   }, [])
 
   const handleDrawBtn = useCallback(() => {
-    if (pendingTs !== null) {
-      toggleDraw()
+    if (drawTs !== null) {
+      cancelAnnotation()
     } else {
       const v = videoRef.current; if (!v) return
+      setPendingTs(null); setPendingEnd(null); setPendingMarker(null); setCommentText('')
       v.pause()
-      setPendingTs(v.currentTime)
-      setPendingMarker({ x: 0.08, y: 0.88 })
-      setCommentText('')
+      setDrawTs(v.currentTime)
       setDrawnPaths([])
       setPathMeta([])
       setCurrentPath([])
       setDrawActive(true)
     }
-  }, [pendingTs, toggleDraw])
+  }, [drawTs, cancelAnnotation])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -442,16 +480,16 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           {/* Left: annotation actions */}
           <div className={s.viewSwitchLeft}>
             <button
-              className={`${s.viewToggleBtn} ${s.viewTogglePill}${pendingTs !== null && !drawActive ? ` ${s.viewToggleBtnActive}` : ''}`}
+              className={`${s.viewToggleBtn} ${s.viewTogglePill}${pendingTs !== null ? ` ${s.viewToggleBtnActive}` : ''}`}
               onClick={() => pendingTs === null ? openAnnotation() : cancelAnnotation()}
               title="Annotate"
             >+ NOTE</button>
             <button
-              className={`${s.viewToggleBtn} ${s.viewTogglePill}${drawActive ? ` ${s.viewToggleBtnActive}` : ''}`}
+              className={`${s.viewToggleBtn} ${s.viewTogglePill}${drawTs !== null ? ` ${s.viewToggleBtnActive}` : ''}`}
               onClick={handleDrawBtn}
               title="Draw on frame"
             >✏ DRAW</button>
-            {pendingTs !== null && (
+            {(pendingTs !== null || drawTs !== null) && (
               <button
                 className={`${s.viewToggleBtn} ${s.viewTogglePill}`}
                 style={{ color: 'rgba(255,100,60,.7)' }}
@@ -690,7 +728,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          {pendingTs !== null && drawActive && (
+          {drawTs !== null && (
             <>
               <span className={s.ctrlSep} />
               {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
@@ -698,6 +736,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               ))}
               <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>↩</button>
               <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>✕</button>
+              <span className={s.ctrlSep} />
+              <button className={s.ctrlBtn} onClick={submitDrawing} disabled={drawnPaths.length === 0 || submitting} style={{ opacity: drawnPaths.length === 0 ? .3 : 1, fontWeight: 700 }}>SAVE</button>
             </>
           )}
         </div>

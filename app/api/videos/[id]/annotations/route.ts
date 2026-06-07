@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const body = await req.json()
   const { timestamp, endTimestamp, markerX, markerY, drawing, comment, author, role } = body
 
-  if (timestamp == null || !comment || !author) {
+  if (timestamp == null || (!comment && !drawing) || !author) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
