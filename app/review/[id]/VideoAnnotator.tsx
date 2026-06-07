@@ -611,14 +611,17 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
         {/* Controls */}
         <div className={s.controls}>
-          <button className={`${s.ctrlBtn} ${s['ctrlBtn--play']}`} onClick={togglePlay}>{isPlaying ? '⏸ PAUSE' : '▶ PLAY'}</button>
+          <button className={`${s.ctrlBtn} ${s['ctrlBtn--play']}`} onClick={togglePlay}>
+            <span style={{ fontSize: 10 }}>{isPlaying ? '⏸' : '▶'}</span>
+            <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+          </button>
           <button className={s.ctrlBtn} onClick={stop}>STOP</button>
           <span className={s.ctrlSep} />
           <button className={s.ctrlBtn} onClick={() => stepFrame(-1)}>‹</button>
           <button className={s.ctrlBtn} onClick={() => stepFrame(1)}>›</button>
           <span className={s.ctrlSep} />
           <button className={s.ctrlBtn} onClick={() => changeRate(Math.max(0.25, +(playbackRate - 0.25).toFixed(2)))}>–</button>
-          <span className={s.timecode} style={{ minWidth: 32, textAlign: 'center' }}>{playbackRate}×</span>
+          <span className={s.rateDisplay}>{playbackRate}×</span>
           <button className={s.ctrlBtn} onClick={() => changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))}>+</button>
           <span className={s.ctrlSep} />
           <button className={`${s.ctrlBtn} ${s.muteBtn}`} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
