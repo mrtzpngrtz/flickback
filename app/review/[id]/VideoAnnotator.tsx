@@ -174,18 +174,20 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       ctx.stroke()
     }
 
-    const active = annotations.find(a => a.id === activeId)
-    if (active?.drawing) {
-      const t = currentTimeRef.current
-      const inRange = active.endTimestamp != null
-        ? t >= active.timestamp && t <= active.endTimestamp
-        : Math.abs(t - active.timestamp) < 0.5
-      if (inRange) {
-        try {
-          const parsed = JSON.parse(active.drawing)
-          if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
-          else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
-        } catch {}
+    if (showAnnotations) {
+      const active = annotations.find(a => a.id === activeId)
+      if (active?.drawing) {
+        const t = currentTimeRef.current
+        const inRange = active.endTimestamp != null
+          ? t >= active.timestamp && t <= active.endTimestamp
+          : Math.abs(t - active.timestamp) < 0.5
+        if (inRange) {
+          try {
+            const parsed = JSON.parse(active.drawing)
+            if (Array.isArray(parsed)) (parsed as Point[][]).forEach(p => renderPath(p))
+            else parsed.paths.forEach((p: Point[], i: number) => renderPath(p, parsed.meta?.[i]?.color ?? '#FF4D00', parsed.meta?.[i]?.width ?? 2))
+          } catch {}
+        }
       }
     }
 
@@ -194,7 +196,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
       if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
     }
-  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs])
+  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs, showAnnotations])
 
   // RAF loop for canvas — decoupled from React renders
   useEffect(() => {
@@ -413,7 +415,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       {/* ── Video column ── */}
       <div className={s.videoCol}>
 
-        {/* 2D / 3D view switch */}
+        {/* View switch bar */}
         <div className={s.viewSwitchBar}>
           <div className={s.viewToggle}>
             <button
@@ -425,6 +427,11 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               onClick={() => !view3d && toggle3d()}
             >3D</button>
           </div>
+          <button
+            className={`${s.viewToggleBtn} ${s.viewTogglePill}${showAnnotations ? ` ${s.viewToggleBtnActive}` : ''}`}
+            onClick={() => setShowAnnotations(p => !p)}
+            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+          >{showAnnotations ? 'NOTES ON' : 'NOTES OFF'}</button>
         </div>
 
         <div
@@ -608,19 +615,26 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.timecode} style={{ minWidth: 32, textAlign: 'center' }}>{playbackRate}×</span>
           <button className={s.ctrlBtn} onClick={() => changeRate(Math.min(2, +(playbackRate + 0.25).toFixed(2)))}>+</button>
           <span className={s.ctrlSep} />
-          <button className={s.ctrlBtn} onClick={toggleMute}>{muted ? '▣' : '▷'}</button>
+          <button className={`${s.ctrlBtn} ${s.muteBtn}`} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
+            {muted ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 6v4h2.5L8 13V3L4.5 6H2z" fill="currentColor"/>
+                <path d="M11 6l3 3m0-3l-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 6v4h2.5L8 13V3L4.5 6H2z" fill="currentColor"/>
+                <path d="M10 5.5c1 .8 1.6 2 1.6 2.5S11 10.2 10 11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+                <path d="M12 3.5c1.8 1.3 2.8 3 2.8 4.5s-1 3.2-2.8 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+              </svg>
+            )}
+          </button>
           <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume}
             onChange={e => changeVolume(parseFloat(e.target.value))}
             style={{ width: 52, accentColor: 'var(--black)', cursor: 'pointer' }} />
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          <span className={s.ctrlSep} />
-          <button
-            className={`${s.ctrlBtn}${!showAnnotations ? ` ${s['ctrlBtn--active']}` : ''}`}
-            onClick={() => setShowAnnotations(p => !p)}
-            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
-          >{showAnnotations ? '◉' : '◎'}</button>
           {pendingTs === null
             ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
             : <>

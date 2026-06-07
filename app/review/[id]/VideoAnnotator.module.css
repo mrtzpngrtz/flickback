@@ -92,6 +92,14 @@
   cursor:     default;
 }
 
+.viewTogglePill {
+  margin-left:   8px;
+  border:        1px solid #333;
+  border-radius: 4px;
+  background:    #1a1a1a;
+  color:         rgba(255,255,255,.35);
+}
+
 /* ── Video info panel ── */
 .videoInfo {
   padding:       var(--sp-16);
@@ -427,6 +435,13 @@
   color:          var(--black);
   font-weight:    500;
   margin-left:    auto;
+}
+
+.muteBtn {
+  display:     flex;
+  align-items: center;
+  padding:     var(--sp-4);
+  line-height: 1;
 }
 
 .ctrlSep {
