@@ -97,6 +97,8 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
   const dragJustEndedRef = useRef(false)
 
+  const [showAnnotations, setShowAnnotations] = useState(true)
+
   // 3D view
   const [view3d, setView3d] = useState(false)
   const [iframeSrc, setIframeSrc] = useState('')
@@ -474,7 +476,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
 
           {/* Saved annotation markers — visible at their timestamp only */}
-          {annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
+          {showAnnotations && annotations.filter(a => a.markerX != null && a.markerY != null).map((a, i) => {
             const isActive = a.id === activeId
             const inRange = a.endTimestamp != null
               ? currentTime >= a.timestamp && currentTime <= a.endTimestamp
@@ -613,6 +615,12 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
+          <span className={s.ctrlSep} />
+          <button
+            className={`${s.ctrlBtn}${!showAnnotations ? ` ${s['ctrlBtn--active']}` : ''}`}
+            onClick={() => setShowAnnotations(p => !p)}
+            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+          >{showAnnotations ? '◉' : '◎'}</button>
           {pendingTs === null
             ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
             : <>
@@ -645,6 +653,7 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           onAnnotationRangeChange={(id, start, end) => {
             setAnnotations(p => p.map(a => a.id === id ? { ...a, timestamp: start, endTimestamp: end } : a).sort((a, b) => a.timestamp - b.timestamp))
           }}
+          showAnnotations={showAnnotations}
         />
 
 

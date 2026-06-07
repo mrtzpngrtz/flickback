@@ -15,6 +15,7 @@ interface Props {
   onSeek: (t: number) => void
   onSelectAnnotation: (a: AnnotationData) => void
   onAnnotationRangeChange: (id: string, start: number, end: number | null) => void
+  showAnnotations?: boolean
 }
 
 function fmt(s: number) {
@@ -58,7 +59,7 @@ function adaptiveTicks(visibleDur: number): { major: number; minor: number; show
 
 export default function Timeline({
   currentTime, duration, buffered, annotations, activeId,
-  videoId, videoRef, onSeek, onSelectAnnotation, onAnnotationRangeChange,
+  videoId, videoRef, onSeek, onSelectAnnotation, onAnnotationRangeChange, showAnnotations = true,
 }: Props) {
   const rootRef    = useRef<HTMLDivElement>(null)
   const scrubBarRef  = useRef<HTMLDivElement>(null)
@@ -293,7 +294,7 @@ export default function Timeline({
       {/* Annotation track — dynamic height, multi-lane */}
       <div
         className={s.annotTrack}
-        style={{ height: trackH }}
+        style={{ height: showAnnotations ? trackH : 0, overflow: 'hidden' }}
         onMouseDown={e => { if (e.altKey) { e.preventDefault(); setPanning(true); panStartRef.current = { x: e.clientX, offset } } }}
       >
         {/* Lane dividers */}
