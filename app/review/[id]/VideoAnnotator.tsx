@@ -191,12 +191,18 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
       }
     }
 
-    // Only show in-progress strokes when annotation form is open
-    if (pendingTs !== null) {
-      drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
-      if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
+    // Show in-progress strokes only near pendingTs (same range logic as saved drawings)
+    if (pendingTs !== null && (drawnPaths.length > 0 || currentPath.length > 1)) {
+      const t = currentTimeRef.current
+      const inPendingRange = pendingEnd != null && pendingEnd > pendingTs
+        ? t >= pendingTs && t <= pendingEnd
+        : Math.abs(t - pendingTs) < 0.5
+      if (inPendingRange) {
+        drawnPaths.forEach((p, i) => renderPath(p, pathMeta[i]?.color ?? drawColor, pathMeta[i]?.width ?? drawWidth))
+        if (currentPath.length > 1) renderPath(currentPath, drawColor, drawWidth)
+      }
     }
-  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs, showAnnotations])
+  }, [annotations, activeId, drawnPaths, currentPath, pathMeta, drawColor, drawWidth, pendingTs, pendingEnd, showAnnotations])
 
   // RAF loop for canvas — decoupled from React renders
   useEffect(() => {
