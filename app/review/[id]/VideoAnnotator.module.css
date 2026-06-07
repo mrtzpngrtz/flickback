@@ -51,15 +51,22 @@
   background: #000;
 }
 
-/* ── 2D / 3D switch bar (top of videoCol) ── */
+/* ── View switch bar (top of videoCol) ── */
 .viewSwitchBar {
   display:         flex;
   align-items:     center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding:         6px 12px;
   background:      #111;
   border-bottom:   1px solid #222;
   flex-shrink:     0;
+}
+
+.viewSwitchLeft,
+.viewSwitchRight {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
 }
 
 .viewToggle {

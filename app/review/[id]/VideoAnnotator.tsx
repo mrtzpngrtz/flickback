@@ -319,6 +319,21 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
     })
   }, [])
 
+  const handleDrawBtn = useCallback(() => {
+    if (pendingTs !== null) {
+      toggleDraw()
+    } else {
+      const v = videoRef.current; if (!v) return
+      v.pause()
+      setPendingTs(v.currentTime)
+      setCommentText('')
+      setDrawnPaths([])
+      setPathMeta([])
+      setCurrentPath([])
+      setDrawActive(true)
+    }
+  }, [pendingTs, toggleDraw])
+
   // Keyboard shortcuts
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -417,21 +432,45 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
 
         {/* View switch bar */}
         <div className={s.viewSwitchBar}>
-          <div className={s.viewToggle}>
+          {/* Left: annotation actions */}
+          <div className={s.viewSwitchLeft}>
             <button
-              className={`${s.viewToggleBtn}${!view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
-              onClick={() => view3d && toggle3d()}
-            >2D</button>
+              className={`${s.viewToggleBtn} ${s.viewTogglePill}${pendingTs !== null && !drawActive ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => pendingTs === null ? openAnnotation() : cancelAnnotation()}
+              title="Annotate"
+            >+ NOTE</button>
             <button
-              className={`${s.viewToggleBtn}${view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
-              onClick={() => !view3d && toggle3d()}
-            >3D</button>
+              className={`${s.viewToggleBtn} ${s.viewTogglePill}${drawActive ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={handleDrawBtn}
+              title="Draw on frame"
+            >✏ DRAW</button>
+            {pendingTs !== null && (
+              <button
+                className={`${s.viewToggleBtn} ${s.viewTogglePill}`}
+                style={{ color: 'rgba(255,100,60,.7)' }}
+                onClick={cancelAnnotation}
+              >✕ CANCEL</button>
+            )}
           </div>
-          <button
-            className={`${s.viewToggleBtn} ${s.viewTogglePill}${showAnnotations ? ` ${s.viewToggleBtnActive}` : ''}`}
-            onClick={() => setShowAnnotations(p => !p)}
-            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
-          >{showAnnotations ? 'NOTES ON' : 'NOTES OFF'}</button>
+
+          {/* Right: view options */}
+          <div className={s.viewSwitchRight}>
+            <button
+              className={`${s.viewToggleBtn} ${s.viewTogglePill}${showAnnotations ? ` ${s.viewToggleBtnActive}` : ''}`}
+              onClick={() => setShowAnnotations(p => !p)}
+              title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+            >{showAnnotations ? 'NOTES ON' : 'NOTES OFF'}</button>
+            <div className={s.viewToggle}>
+              <button
+                className={`${s.viewToggleBtn}${!view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+                onClick={() => view3d && toggle3d()}
+              >2D</button>
+              <button
+                className={`${s.viewToggleBtn}${view3d ? ` ${s.viewToggleBtnActive}` : ''}`}
+                onClick={() => !view3d && toggle3d()}
+              >3D</button>
+            </div>
+          </div>
         </div>
 
         <div
@@ -644,22 +683,16 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
           <span className={s.ctrlSep} />
           <span className={s.timecode}>{formatTimecode(currentTime)}</span>
           <span className={s.timecodeAlt}>&nbsp;/&nbsp;{formatTimecode(duration)}</span>
-          {pendingTs === null
-            ? <button className={`${s.ctrlBtn} ${s['ctrlBtn--annotate']}`} onClick={openAnnotation}>+ ANNOTATE</button>
-            : <>
-                <button className={`${s.drawBtn}${drawActive ? ` ${s['drawBtn--active']}` : ''}`} onClick={toggleDraw}>✏ DRAW</button>
-                {drawActive && (
-                  <>
-                    {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
-                      <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
-                    ))}
-                    <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>↩</button>
-                    <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>✕</button>
-                  </>
-                )}
-                <button className="btn btn--ghost" style={{ fontSize: 10 }} onClick={cancelAnnotation}>CANCEL</button>
-              </>
-          }
+          {pendingTs !== null && drawActive && (
+            <>
+              <span className={s.ctrlSep} />
+              {['#FF4D00', '#ffffff', '#1a1a1a'].map(c => (
+                <button key={c} onClick={() => setDrawColor(c)} style={{ width: 12, height: 12, background: c, border: drawColor === c ? '2px solid var(--accent)' : '1px solid var(--gray-30)', cursor: 'pointer', flexShrink: 0 }} />
+              ))}
+              <button className={s.ctrlBtn} onClick={() => { setDrawnPaths(p => p.slice(0, -1)); setPathMeta(p => p.slice(0, -1)) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>↩</button>
+              <button className={s.ctrlBtn} onClick={() => { setDrawnPaths([]); setPathMeta([]) }} disabled={drawnPaths.length === 0} style={{ opacity: drawnPaths.length === 0 ? .3 : 1 }}>✕</button>
+            </>
+          )}
         </div>
 
         {/* Timeline */}
