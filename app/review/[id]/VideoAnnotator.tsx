@@ -478,6 +478,12 @@ export default function VideoAnnotator({ videoUrl, videoId, initialAnnotations, 
               className={s.viewer3d}
               title="3D Preview"
               allow="autoplay"
+              onLoad={() => {
+                const v = videoRef.current
+                if (!v) return
+                postTo3d({ type: 'rate', rate: v.playbackRate })
+                if (!v.paused) postTo3d({ type: 'play', time: v.currentTime })
+              }}
             />
           )}
 

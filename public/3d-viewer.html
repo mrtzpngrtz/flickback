@@ -314,7 +314,7 @@
 
         function loadVideo(url) {
             video.src = url;
-            video.play().catch(() => {});
+            if (!embedParam) video.play().catch(() => {});
             if (videoTex) videoTex.dispose();
             videoTex = new THREE.VideoTexture(video);
             videoTex.colorSpace = THREE.SRGBColorSpace;
